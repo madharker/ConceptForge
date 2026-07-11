@@ -39,20 +39,41 @@ export default function ResearchFlow({
   submitError,
 }) {
   const [idx, setIdx] = useState(0)
+  const [localError, setLocalError] = useState(null)
   const step = STEPS[idx]
   const isFirst = idx === 0
   const isLast = idx === STEPS.length - 1
 
   function update(val) {
     setResearch((prev) => ({ ...prev, [step.key]: val }))
+    if (localError) setLocalError(null)
   }
 
   function next() {
+    // 校验当前步骤非空
+    if (!String(research[step.key] || '').trim()) {
+      setLocalError(`请先完成「${step.label}」再进入下一步`)
+      return
+    }
+    setLocalError(null)
     setIdx((i) => Math.min(STEPS.length - 1, i + 1))
   }
 
   function prev() {
+    setLocalError(null)
     setIdx((i) => Math.max(0, i - 1))
+  }
+
+  function handleSubmit() {
+    // 提交前校验全部 5 个字段非空
+    const empty = STEPS.find((s) => !String(research[s.key] || '').trim())
+    if (empty) {
+      setLocalError(`「${empty.label}」还未填写，请补全后再提交`)
+      setIdx(STEPS.findIndex((s) => s.key === empty.key))
+      return
+    }
+    setLocalError(null)
+    onSubmit(research)
   }
 
   return (
@@ -67,6 +88,8 @@ export default function ResearchFlow({
           const cls = ['step']
           if (i === idx) cls.push('active')
           if (i < idx) cls.push('done')
+          // 标记已填写的步骤
+          if (String(research[s.key] || '').trim() && i !== idx) cls.push('filled')
           return (
             <li key={s.key} className={cls.join(' ')}>
               <span className="step-num">{String(i + 1).padStart(2, '0')}</span>
@@ -88,14 +111,16 @@ export default function ResearchFlow({
 
         <textarea
           className="step-textarea"
-          value={research[step.key]}
+          value={research[step.key] || ''}
           onChange={(e) => update(e.target.value)}
           placeholder="在此写下你的思考…"
           rows={10}
           autoFocus
         />
 
-        {submitError && <div className="error-box">{submitError}</div>}
+        {(localError || submitError) && (
+          <div className="error-box">{localError || submitError}</div>
+        )}
 
         <div className="step-nav">
           <button
@@ -109,7 +134,7 @@ export default function ResearchFlow({
           {isLast ? (
             <button
               className="btn btn-primary"
-              onClick={() => onSubmit(research)}
+              onClick={handleSubmit}
               disabled={submitting}
             >
               {submitting ? '提交中…' : '提交研究'}

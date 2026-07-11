@@ -154,9 +154,15 @@ export default function ResultsView({ submissionId, onRestart }) {
       {/* 风格与质量总结 */}
       <section className="module">
         <h3 className="module-title">风格与质量总结</h3>
-        {!styleExpanded && !styleSummary && (
-          <button className="btn btn-primary" onClick={() => { setStyleExpanded(true); loadStyleSummary() }}>
-            查看风格与质量总结
+        {!styleExpanded && (
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setStyleExpanded(true)
+              if (!styleSummary) loadStyleSummary()
+            }}
+          >
+            {styleSummary ? '展开风格与质量总结' : '查看风格与质量总结'}
           </button>
         )}
         {styleExpanded && styleLoading && (
@@ -178,9 +184,11 @@ export default function ResultsView({ submissionId, onRestart }) {
                 </li>
               ))}
             </ul>
-            <button className="btn btn-primary" onClick={() => setStyleExpanded(false)} style={{ marginTop: 12 }}>
-              收起风格总结
-            </button>
+            <div className="results-actions" style={{ marginTop: 12, paddingTop: 0, borderTop: 'none' }}>
+              <button className="btn btn-ghost" onClick={() => setStyleExpanded(false)}>
+                收起风格总结
+              </button>
+            </div>
           </>
         )}
       </section>
