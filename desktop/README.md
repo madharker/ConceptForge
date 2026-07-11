@@ -21,11 +21,12 @@ desktop/frontend/ (Vite + React)
   └── api.js 读取 window.__CF_PORT__
 ```
 
-## 开发运行
+## 快速开始（普通使用，无需 Node.js）
+
+仓库已包含构建好的前端产物 `desktop/assets/`，普通用户只需装 Python 即可运行。
 
 ### 前置条件
 - Python 3.10+
-- Node.js 18+
 - 桌面环境（PyWebView 需要图形界面）
 
 ### 1. 安装 Python 依赖
@@ -43,7 +44,29 @@ sudo apt install libwebkit2gtk-4.0-dev
 
 Windows 无额外依赖（Win10+ 自带 Edge WebView2）。
 
-### 2. 构建前端
+### 2. 运行
+```bash
+python desktop/main.py
+```
+
+> 首次启动为 mock 模式，可直接体验完整流程。接入 LLM 见下方"使用流程"。
+
+## 开发模式（修改前端源码时才需要）
+
+仅当你需要修改 `desktop/frontend/` 下的 React 源码并重新构建时，才需要 Node.js。普通使用请跳过本节。
+
+### 额外前置条件
+- Node.js 18+（仅重建前端时需要）
+
+### Node.js PATH 问题提示
+Windows 安装 Node.js 后，若在新开的终端中 `npm` 命令仍不可用，常见原因：
+- 安装时未勾选 "Add to PATH" → 重装并勾选，或手动将 `%AppData%\npm` 和 Node.js 安装目录加入系统 PATH
+- 安装后未重启终端 → **关闭所有终端窗口后重新打开**（PATH 变更对新开的终端生效）
+- 仍不行 → 注销或重启 Windows
+
+Linux/macOS 若 `npm` 不可用，确认 Node.js 安装路径在 `$PATH` 中（通常 `/usr/local/bin` 或 `~/.nvm/versions/node/*/bin`）。
+
+### 重新构建前端
 ```bash
 python desktop/build_frontend.py
 ```
@@ -52,11 +75,6 @@ python desktop/build_frontend.py
 cd desktop/frontend
 npm install
 npm run build   # 产物输出到 desktop/assets/
-```
-
-### 3. 运行
-```bash
-python desktop/main.py
 ```
 
 ## 使用流程
