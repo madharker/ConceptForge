@@ -10,10 +10,14 @@ Behaviour:
   endpoint (configured via ``CF_LLM_BASE_URL`` / ``CF_LLM_MODEL``) and parses
   the response as JSON.
 
-Env vars:
-- ``CF_LLM_BASE_URL``  base url of the OpenAI-compatible API
-- ``CF_LLM_API_KEY``   api key; empty/missing => mock mode
-- ``CF_LLM_MODEL``     model name (default ``gpt-4o-mini``)
+Config sources (checked in order):
+- Runtime config: injected via ``set_runtime_config(cfg)``. Used by the desktop
+  app settings page. When set, it takes precedence over env vars. Pass ``None``
+  to clear and revert to env vars (Web backend default path).
+- Env vars (fallback when no runtime config is set):
+  - ``CF_LLM_BASE_URL``  base url of the OpenAI-compatible API
+  - ``CF_LLM_API_KEY``   api key; empty/missing => mock mode
+  - ``CF_LLM_MODEL``     model name (default ``gpt-4o-mini``)
 """
 from __future__ import annotations
 
@@ -26,13 +30,41 @@ DEFAULT_MODEL = "gpt-4o-mini"
 
 MockSpec = Union[dict, Callable[[], dict], None]
 
+# Runtime config (desktop app injects via set_runtime_config).
+# When None (default), falls back to env vars — preserving Web backend behavior.
+_runtime_config: Optional[dict] = None
+
+
+def set_runtime_config(cfg: Optional[dict]) -> None:
+    """Inject runtime LLM config (desktop app settings page).
+
+    cfg shape: {"base_url": str|None, "api_key": str, "model": str}
+    Pass None to clear and revert to env vars.
+    """
+    global _runtime_config
+    _runtime_config = dict(cfg) if cfg else None
+
+
+def get_runtime_config() -> Optional[dict]:
+    """Return current runtime config (for inspection/testing)."""
+    return dict(_runtime_config) if _runtime_config else None
+
 
 def is_mock_mode() -> bool:
     """True when no API key is configured (mock fallback active)."""
+    if _runtime_config is not None:
+        return not (_runtime_config.get("api_key") or "").strip()
     return not (os.getenv("CF_LLM_API_KEY") or "").strip()
 
 
 def _get_config() -> dict:
+    if _runtime_config is not None:
+        return {
+            "base_url": _runtime_config.get("base_url") or None,
+            "api_key": (_runtime_config.get("api_key") or "").strip(),
+            "model": (_runtime_config.get("model") or DEFAULT_MODEL).strip(),
+        }
+    # Fallback: env vars (Web backend path — unchanged)
     return {
         "base_url": (os.getenv("CF_LLM_BASE_URL") or "").strip() or None,
         "api_key": (os.getenv("CF_LLM_API_KEY") or "").strip(),

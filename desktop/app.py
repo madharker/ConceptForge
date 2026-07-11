@@ -1,0 +1,95 @@
+"""ConceptForge desktop FastAPI app.
+
+Mounts the existing backend routers (topics, submissions) AND adds /api/settings
+endpoints so the desktop frontend's SettingsView can read/write LLM config
+persistently and inject it into llm_client at runtime.
+"""
+from __future__ import annotations
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+# Import existing routers (add backend to sys.path)
+import sys
+from pathlib import Path
+_BACKEND = Path(__file__).resolve().parent.parent / "backend"
+if str(_BACKEND) not in sys.path:
+    sys.path.insert(0, str(_BACKEND))
+
+from app.routers import topics, submissions  # noqa: E402
+from app.llm_client import set_runtime_config, get_runtime_config, is_mock_mode  # noqa: E402
+from desktop.config import load_config, save_config  # noqa: E402
+
+app = FastAPI(title="ConceptForge Desktop")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount existing routers — same /api/* paths as Web backend
+app.include_router(topics.router)
+app.include_router(submissions.router)
+
+
+class SettingsModel(BaseModel):
+    base_url: str = ""
+    api_key: str = ""
+    model: str = "gpt-4o-mini"
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "mock_mode": is_mock_mode()}
+
+
+@app.get("/api/settings")
+def get_settings():
+    """Return current persisted LLM config + mock status."""
+    cfg = load_config()
+    return {
+        "base_url": cfg.get("base_url", ""),
+        "api_key": cfg.get("api_key", ""),
+        "model": cfg.get("model", "gpt-4o-mini"),
+        "mock_mode": is_mock_mode(),
+    }
+
+
+@app.put("/api/settings")
+def put_settings(s: SettingsModel):
+    """Persist config AND inject into llm_client immediately (no restart)."""
+    cfg = {"base_url": s.base_url, "api_key": s.api_key, "model": s.model}
+    save_config(cfg)
+    set_runtime_config(cfg)
+    return {"ok": True, "mock_mode": is_mock_mode()}
+
+
+@app.post("/api/settings/test")
+def test_connection(s: SettingsModel):
+    """Send a minimal LLM request with the given (unsaved) config to verify it works."""
+    from app.llm_client import chat_json
+    # Temporarily inject the test config
+    test_cfg = {"base_url": s.base_url, "api_key": s.api_key, "model": s.model}
+    set_runtime_config(test_cfg)
+    try:
+        result = chat_json(
+            system="You are a connection test. Reply with JSON.",
+            user='{"ping":"pong"}',
+            schema_hint={"ping": "string"},
+            mock={"ping": "mock"},
+        )
+        # If result has ping key, it worked
+        is_real = not is_mock_mode()
+        return {"ok": True, "mock_mode": not is_real, "response": result}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        # Restore the persisted config (or None if none saved)
+        persisted = load_config()
+        if persisted.get("api_key"):
+            set_runtime_config(persisted)
+        else:
+            set_runtime_config(None)
