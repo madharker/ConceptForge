@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { fetchSettings, saveSettings, testConnection } from '../api'
+import { useEffect, useRef, useState } from 'react'
+import { fetchSettings, saveSettings, testConnection, fetchLLMLogs, clearLLMLogs } from '../api'
 
 const VIEW_CSS = `
 .cf-field {
@@ -60,6 +60,142 @@ const VIEW_CSS = `
 }
 .cf-msg.ok { color: var(--accent2); }
 .cf-msg.err { color: var(--danger); }
+
+/* ===== LLM 调用日志面板 ===== */
+.cf-logs {
+  margin-top: 48px;
+  padding-top: 28px;
+  border-top: 1px solid var(--rule);
+}
+.cf-logs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.cf-logs-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.cf-logs-meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cf-logs-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent2);
+  animation: cfpulse 1.5s ease-in-out infinite;
+}
+@keyframes cfpulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+.cf-log-item {
+  background: var(--bg2);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.cf-log-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.cf-log-row:hover {
+  background: var(--bg3);
+}
+.cf-log-status {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 3px 9px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  border: 1px solid;
+}
+.cf-log-status.running {
+  color: var(--accent);
+  border-color: var(--accent);
+  animation: cfpulse 1.2s ease-in-out infinite;
+}
+.cf-log-status.success {
+  color: var(--accent2);
+  border-color: var(--accent2);
+}
+.cf-log-status.failed,
+.cf-log-status.timeout {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.cf-log-model {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--ink);
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.cf-log-model.mock {
+  color: var(--muted);
+}
+.cf-log-stats {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.cf-log-detail {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--rule);
+  animation: fadeUp 0.2s ease both;
+}
+.cf-log-field {
+  margin-top: 12px;
+}
+.cf-log-field-label {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--accent2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 6px;
+}
+.cf-log-field-text {
+  font-size: 0.86rem;
+  color: var(--ink);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+}
+.cf-log-field-text.error {
+  color: var(--danger);
+  border-color: rgba(217, 138, 138, 0.35);
+}
+.cf-logs-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 24px 0;
+  text-align: center;
+}
 `
 
 export default function SettingsView({ onBack }) {
@@ -76,6 +212,11 @@ export default function SettingsView({ onBack }) {
   const [testMsg, setTestMsg] = useState(null) // { ok, text }
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState(null) // { ok, text }
+
+  // LLM 调用日志面板状态
+  const [logs, setLogs] = useState([])
+  const [expandedId, setExpandedId] = useState(null)
+  const logsTimer = useRef(null)
 
   useEffect(() => {
     let alive = true
@@ -100,6 +241,35 @@ export default function SettingsView({ onBack }) {
       alive = false
     }
   }, [])
+
+  // 轮询 LLM 调用日志：每 1.5s 拉取一次，实时展示模型输入输出与异常状态
+  useEffect(() => {
+    let alive = true
+    async function poll() {
+      try {
+        const res = await fetchLLMLogs()
+        if (alive) setLogs(res.logs || [])
+      } catch {
+        // 静默失败，不打断设置页
+      }
+    }
+    poll()
+    logsTimer.current = setInterval(poll, 1500)
+    return () => {
+      alive = false
+      if (logsTimer.current) clearInterval(logsTimer.current)
+    }
+  }, [])
+
+  async function handleClearLogs() {
+    try {
+      await clearLLMLogs()
+      setLogs([])
+      setExpandedId(null)
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function handleTest() {
     setTesting(true)
@@ -254,6 +424,84 @@ export default function SettingsView({ onBack }) {
           </div>
         </section>
       )}
+
+      {/* ===== LLM 调用日志面板（实时轮询）===== */}
+      <section className="cf-logs">
+        <div className="cf-logs-head">
+          <span className="cf-logs-title">LLM 调用日志</span>
+          <div className="cf-logs-meta">
+            <span className="cf-logs-pulse" />
+            <span>实时刷新 · 1.5s</span>
+            <button
+              className="btn btn-ghost"
+              onClick={handleClearLogs}
+              disabled={logs.length === 0}
+            >
+              清空
+            </button>
+          </div>
+        </div>
+
+        {logs.length === 0 ? (
+          <p className="cf-logs-empty">
+            暂无调用记录。开始研究流程后，此处将实时显示每次 LLM 调用的输入、输出与状态。
+          </p>
+        ) : (
+          logs.map((log) => (
+            <div className="cf-log-item" key={log.call_id}>
+              <div
+                className="cf-log-row"
+                onClick={() =>
+                  setExpandedId(expandedId === log.call_id ? null : log.call_id)
+                }
+              >
+                <span className={`cf-log-status ${log.status}`}>
+                  {log.status === 'running' ? '输出中' : log.status}
+                </span>
+                <span className={`cf-log-model ${log.mock ? 'mock' : ''}`}>
+                  {log.mock ? 'mock 模式' : log.model}
+                </span>
+                <span className="cf-log-stats">
+                  {log.chars_received > 0 ? `${log.chars_received} 字 · ` : ''}
+                  {log.elapsed_ms != null ? `${log.elapsed_ms}ms` : '进行中…'}
+                </span>
+              </div>
+              {expandedId === log.call_id && (
+                <div className="cf-log-detail">
+                  <div className="cf-log-field">
+                    <span className="cf-log-field-label">System Prompt</span>
+                    <div className="cf-log-field-text">
+                      {log.system_preview || '(空)'}
+                    </div>
+                  </div>
+                  <div className="cf-log-field">
+                    <span className="cf-log-field-label">User Prompt</span>
+                    <div className="cf-log-field-text">
+                      {log.user_preview || '(空)'}
+                    </div>
+                  </div>
+                  {log.response_preview && (
+                    <div className="cf-log-field">
+                      <span className="cf-log-field-label">Response</span>
+                      <div className="cf-log-field-text">
+                        {log.response_preview}
+                      </div>
+                    </div>
+                  )}
+                  {log.error && (
+                    <div className="cf-log-field">
+                      <span className="cf-log-field-label">Error</span>
+                      <div className="cf-log-field-text error">
+                        {log.error}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </section>
     </div>
   )
 }

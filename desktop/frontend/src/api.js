@@ -85,3 +85,22 @@ export async function testConnection({ base_url, api_key, model }) {
   handleError(res, '测试连接失败')
   return res.json()
 }
+
+// GET /api/llm/logs -> { logs: [...] }  最近 50 条 LLM 调用日志（最新在前）
+export async function fetchLLMLogs() {
+  const res = await fetch(`${BASE}/api/llm/logs`, {
+    headers: { Accept: 'application/json' },
+  })
+  handleError(res, '获取 LLM 日志失败')
+  return res.json()
+}
+
+// DELETE /api/llm/logs -> { ok: true }
+export async function clearLLMLogs() {
+  const res = await fetch(`${BASE}/api/llm/logs`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+  })
+  handleError(res, '清空日志失败')
+  return res.json()
+}

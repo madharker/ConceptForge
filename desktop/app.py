@@ -17,7 +17,13 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from app.routers import topics, submissions  # noqa: E402
-from app.llm_client import set_runtime_config, get_runtime_config, is_mock_mode  # noqa: E402
+from app.llm_client import (  # noqa: E402
+    set_runtime_config,
+    get_runtime_config,
+    is_mock_mode,
+    get_recent_logs,
+    clear_logs,
+)
 from desktop.config import load_config, save_config  # noqa: E402
 
 app = FastAPI(title="ConceptForge Desktop")
@@ -93,3 +99,23 @@ def test_connection(s: SettingsModel):
             set_runtime_config(persisted)
         else:
             set_runtime_config(None)
+
+
+@app.get("/api/llm/logs")
+def llm_logs():
+    """返回最近 50 条 LLM 调用日志（最新在前）。
+
+    每条日志包含：call_id, model, mock, status (running/success/failed/timeout),
+    started_at, finished_at, elapsed_ms, chars_received, system_preview,
+    user_preview, response_preview, error。
+
+    前端轮询此端点即可实时观测 LLM 的输入输出与异常状态。
+    """
+    return {"logs": get_recent_logs()}
+
+
+@app.delete("/api/llm/logs")
+def llm_logs_clear():
+    """清空调用日志。"""
+    clear_logs()
+    return {"ok": True}

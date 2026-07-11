@@ -21,18 +21,95 @@ Config sources (checked in order):
 """
 from __future__ import annotations
 
+import collections
 import json
 import os
 import re
+import time
+import uuid
+from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Union
 
 DEFAULT_MODEL = "gpt-4o-mini"
+
+# 无活动超时（秒）：streaming 期间若 30s 内未收到任何新 chunk，判定模型异常暂停。
+IDLE_TIMEOUT_SEC = 30.0
+# 连接阶段超时（秒）：base_url 错误或不可达时快速失败。
+CONNECT_TIMEOUT_SEC = 10.0
 
 MockSpec = Union[dict, Callable[[], dict], None]
 
 # Runtime config (desktop app injects via set_runtime_config).
 # When None (default), falls back to env vars — preserving Web backend behavior.
 _runtime_config: Optional[dict] = None
+
+# ---------------------------------------------------------------------------
+# LLM 调用日志缓冲（供桌面端「LLM 调用日志」面板轮询展示）
+# ---------------------------------------------------------------------------
+_LLM_LOGS: "collections.deque[dict]" = collections.deque(maxlen=50)
+
+
+def get_recent_logs() -> list[dict]:
+    """返回最近 50 条 LLM 调用日志（最新在前）。"""
+    return list(_LLM_LOGS)
+
+
+def clear_logs() -> None:
+    """清空调用日志。"""
+    _LLM_LOGS.clear()
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _preview(s: Optional[str], n: int = 400) -> Optional[str]:
+    if s is None:
+        return None
+    return s if len(s) <= n else s[:n] + "…"
+
+
+def _log_start(call_id: str, model: str, system: str, user: str, mock: bool) -> None:
+    _LLM_LOGS.appendleft({
+        "call_id": call_id,
+        "model": model,
+        "mock": mock,
+        "status": "running",
+        "started_at": _now_iso(),
+        "finished_at": None,
+        "elapsed_ms": None,
+        "chars_received": 0,
+        "system_preview": _preview(system),
+        "user_preview": _preview(user),
+        "response_preview": None,
+        "error": None,
+    })
+
+
+def _log_update(call_id: str, **fields: Any) -> None:
+    for entry in _LLM_LOGS:
+        if entry["call_id"] == call_id:
+            entry.update(fields)
+            return
+
+
+def _log_finish(
+    call_id: str,
+    status: str,
+    response: Optional[str] = None,
+    error: Optional[str] = None,
+    elapsed_ms: Optional[int] = None,
+    chars: int = 0,
+) -> None:
+    _log_update(
+        call_id,
+        status=status,
+        finished_at=_now_iso(),
+        elapsed_ms=elapsed_ms,
+        chars_received=chars,
+        response_preview=_preview(response),
+        error=error,
+    )
 
 
 def set_runtime_config(cfg: Optional[dict]) -> None:
@@ -109,15 +186,47 @@ def chat_json(
             to the user prompt to steer structured output.
         mock: when in mock mode (no API key), this dict (or zero-arg callable
             returning a dict) is returned instead of calling the LLM.
+
+    每次调用都会写入 ``_LLM_LOGS`` 缓冲区，供桌面端日志面板轮询展示。
+    真实调用采用 streaming 模式，并通过 httpx 的 read timeout 检测「模型
+    异常暂停」——若 {IDLE_TIMEOUT_SEC}s 内未收到任何新 chunk 即判定超时，
+    立即向上抛出 ``RuntimeError``，前端可据此通知用户。
     """
+    call_id = uuid.uuid4().hex[:8]
+
     if is_mock_mode():
-        return _resolve_mock(mock)
+        _log_start(call_id, "(mock)", system, user, mock=True)
+        result = _resolve_mock(mock)
+        _log_finish(
+            call_id,
+            status="success",
+            response=json.dumps(result, ensure_ascii=False),
+            elapsed_ms=0,
+            chars=0,
+        )
+        return result
 
     cfg = _get_config()
+    _log_start(call_id, cfg["model"], system, user, mock=False)
+
     # Lazy import so mock-only environments don't require the SDK at runtime.
     from openai import OpenAI  # type: ignore
+    import httpx  # type: ignore
 
-    client = OpenAI(base_url=cfg["base_url"], api_key=cfg["api_key"])
+    # read timeout = 无活动超时；connect timeout = 连接阶段超时。
+    # streaming 模式下，read timeout 作用于每次 chunk 读取——若模型暂停
+    # 输出（IDLE_TIMEOUT_SEC 内无新数据），httpx 抛 ReadTimeout。
+    timeout_cfg = httpx.Timeout(
+        connect=CONNECT_TIMEOUT_SEC,
+        read=IDLE_TIMEOUT_SEC,
+        write=10.0,
+        pool=10.0,
+    )
+    client = OpenAI(
+        base_url=cfg["base_url"],
+        api_key=cfg["api_key"],
+        timeout=timeout_cfg,
+    )
 
     user_content = user
     if schema_hint:
@@ -131,16 +240,55 @@ def chat_json(
         {"role": "user", "content": user_content},
     ]
 
+    start_ts = time.time()
+    chunks: list[str] = []
+    chars_so_far = 0
     try:
-        resp = client.chat.completions.create(
+        stream = client.chat.completions.create(
             model=cfg["model"],
             messages=messages,
             temperature=0.2,
             response_format={"type": "json_object"},
+            stream=True,
         )
-        content = resp.choices[0].message.content or ""
-        return _extract_json(content)
+        for chunk in stream:
+            delta = ""
+            if chunk.choices:
+                delta = chunk.choices[0].delta.content or ""
+            if delta:
+                chunks.append(delta)
+                chars_so_far += len(delta)
+                # 实时更新已接收字符数，前端轮询时可见「正在输出」
+                _log_update(call_id, chars_received=chars_so_far)
+        content = "".join(chunks)
+        result = _extract_json(content)
+        elapsed_ms = int((time.time() - start_ts) * 1000)
+        _log_finish(
+            call_id,
+            status="success",
+            response=content,
+            elapsed_ms=elapsed_ms,
+            chars=chars_so_far,
+        )
+        return result
+    except httpx.TimeoutException as exc:
+        elapsed_ms = int((time.time() - start_ts) * 1000)
+        msg = f"模型超时（{IDLE_TIMEOUT_SEC:.0f}s 内无输出，可能已异常暂停）: {exc}"
+        _log_finish(
+            call_id,
+            status="timeout",
+            error=msg,
+            elapsed_ms=elapsed_ms,
+            chars=chars_so_far,
+        )
+        raise RuntimeError(f"LLM 调用超时: {msg}") from exc
     except Exception as exc:  # pragma: no cover - network path, not tested here
-        # If the real call fails, surface a clear error rather than crashing
-        # the pipeline silently. Callers may choose to retry/fallback.
+        elapsed_ms = int((time.time() - start_ts) * 1000)
+        _log_finish(
+            call_id,
+            status="failed",
+            error=str(exc),
+            elapsed_ms=elapsed_ms,
+            chars=chars_so_far,
+        )
         raise RuntimeError(f"LLM chat_json call failed: {exc}") from exc
