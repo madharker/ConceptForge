@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConceptForge · 研究式学习</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg2: #161922;
+    --bg3: #1c2030;
+    --ink: #e8e6e3;
+    --muted: #8a8f98;
+    --rule: #2a2d35;
+    --rule2: #3a3f4a;
+    --accent: #c9a96e;
+    --accent-hi: #d8b87c;
+    --accent2: #7eb8a2;
+    --danger: #d98a8a;
+    --font: Georgia, 'Times New Roman', serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+    --max: 880px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    font-family: var(--font);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(900px 500px at 50% -10%, rgba(201, 169, 110, 0.06), transparent 60%),
+      radial-gradient(700px 400px at 100% 110%, rgba(126, 184, 162, 0.05), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== Header ===== */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(15, 17, 21, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .hdr-inner {
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(201, 169, 110, 0.6);
+  }
+  .brand .cn { font-size: 1.05rem; font-weight: 600; color: var(--ink); letter-spacing: 0.02em; }
+  .brand .en {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .hdr-tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ===== Layout ===== */
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 56px 28px 96px;
+  }
+
+  /* ===== View switching ===== */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ===== Buttons ===== */
+  .btn {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 11px 22px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hi);
+    border-color: var(--accent-hi);
+    transform: translateY(-1px);
+  }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--rule2); }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.lg { padding: 14px 30px; font-size: 0.9rem; }
+
+  /* ===== Badge ===== */
+  .badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 4px 12px;
+    border-radius: 99px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .muted { color: var(--muted); }
+
+  /* ===== TopicView ===== */
+  .topic-hero { padding: 32px 0 24px; animation: fadeUp 0.5s ease both; }
+  .topic-hero .badge { margin-bottom: 24px; }
+  .topic-q {
+    font-size: 2.2rem;
+    line-height: 1.28;
+    letter-spacing: 0.01em;
+    font-weight: 600;
+    margin-bottom: 28px;
+    border-left: 3px solid var(--accent);
+    padding-left: 20px;
+  }
+  .topic-bg {
+    background: var(--bg2);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 22px 26px;
+    margin-bottom: 36px;
+  }
+  .topic-bg .bg-tag {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .topic-bg p { color: var(--muted); font-size: 1rem; margin: 0; }
+  .topic-hero .btn { margin-bottom: 18px; }
+  .topic-hint { font-size: 0.88rem; }
+
+  /* ===== ResearchFlow ===== */
+  .research-flow { animation: fadeUp 0.4s ease both; }
+  .topic-recap {
+    background: var(--bg2);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent2);
+    border-radius: 8px;
+    padding: 16px 22px;
+    margin-bottom: 32px;
+  }
+  .topic-recap .recap-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .topic-recap .recap-q { font-size: 1rem; color: var(--ink); margin: 0; font-weight: 500; }
+
+  /* stepper */
+  .stepper { list-style: none; display: flex; gap: 6px; margin-bottom: 32px; }
+  .stepper .step {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--rule);
+    background: var(--bg2);
+    position: relative;
+    transition: all 0.25s ease;
+  }
+  .stepper .step .step-num {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .stepper .step .step-label {
+    font-size: 0.82rem;
+    color: var(--muted);
+    font-weight: 500;
+    text-align: center;
+  }
+  .stepper .step.active {
+    border-color: var(--accent);
+    background: linear-gradient(180deg, rgba(201, 169, 110, 0.12), rgba(201, 169, 110, 0.02));
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .stepper .step.active .step-label { color: var(--ink); }
+  .stepper .step.active .step-num { color: var(--accent); }
+  .stepper .step.done .step-num { color: var(--accent2); }
+  .stepper .step.done .step-label { color: var(--ink); }
+  .stepper .step.done::after {
+    content: '';
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+  }
+  @media (max-width: 640px) {
+    .stepper { flex-direction: column; }
+    .stepper .step { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 12px 16px; }
+  }
+
+  /* step panel */
+  .step-panel {
+    background: var(--bg2);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 30px 32px;
+    animation: fadeUp 0.35s ease both;
+  }
+  .step-meta { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+  .step-tag {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .step-name {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .step-prompt {
+    font-size: 1.18rem;
+    line-height: 1.6;
+    font-weight: 600;
+    margin-bottom: 22px;
+    color: var(--ink);
+  }
+  .step-textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 180px;
+    background: var(--bg);
+    border: 1px solid var(--rule2);
+    border-radius: 8px;
+    padding: 16px 18px;
+    font-family: var(--font);
+    font-size: 1rem;
+    line-height: 1.75;
+    color: var(--ink);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .step-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.15);
+  }
+  .step-textarea::placeholder { color: #5d626c; }
+  .step-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  /* ===== ResultsView ===== */
+  .results { animation: fadeUp 0.4s ease both; }
+  .results-header {
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .results-header .badge { margin-bottom: 14px; }
+  .results-header h2 { font-size: 1.5rem; line-height: 1.35; font-weight: 600; }
+
+  .module { margin-bottom: 48px; animation: fadeUp 0.5s ease both; }
+  .module:nth-child(2) { animation-delay: 0.08s; }
+  .module:nth-child(3) { animation-delay: 0.16s; }
+  .module:nth-child(4) { animation-delay: 0.24s; }
+  .module-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    display: inline-block;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent);
+    margin-bottom: 20px;
+  }
+  .sub-title {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin: 26px 0 14px;
+  }
+  .sub-title.first { margin-top: 0; }
+
+  /* five dimensions */
+  .dim-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+  .dim-item {
+    background: var(--bg2);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 18px 22px;
+  }
+  .dim-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .dim-label { font-size: 1rem; font-weight: 600; color: var(--ink); }
+  .verdict {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 3px 10px;
+    border-radius: 99px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .dim-detail {
+    color: var(--muted);
+    font-size: 0.94rem;
+    margin: 0;
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+
+  /* three layers */
+  .layer-stack { display: flex; flex-direction: column; gap: 14px; }
+  .layer-card {
+    background: var(--bg2);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 20px 24px;
+  }
+  .layer-card:nth-child(1) { border-left: 3px solid var(--muted); }
+  .layer-card:nth-child(2) { border-left: 3px solid var(--accent); }
+  .layer-card:nth-child(3) { border-left: 3px solid var(--accent2); }
+  .layer-tag {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .layer-card:nth-child(1) .layer-tag { color: var(--muted); }
+  .layer-card:nth-child(3) .layer-tag { color: var(--accent2); }
+  .layer-text {
+    color: var(--ink);
+    font-size: 0.98rem;
+    line-height: 1.75;
+    margin: 0;
+    white-space: pre-wrap;
+  }
+
+  /* diff */
+  .diff-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .diff-item {
+    background: var(--bg2);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 18px 22px;
+  }
+  .diff-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--accent2);
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .diff-text {
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.7;
+    margin: 0;
+    white-space: pre-wrap;
+  }
+  @media (max-width: 640px) {
+    .diff-list { grid-template-columns: 1fr; }
+  }
+
+  .results-actions {
+    margin-top: 16px;
+    text-align: center;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @media (max-width: 640px) {
+    .page { padding: 36px 18px 64px; }
+    .hdr-inner { padding: 12px 18px; }
+    .hdr-tag { font-size: 0.62rem; }
+    .topic-q { font-size: 1.7rem; padding-left: 14px; }
+    .step-panel { padding: 22px 18px; }
+    .step-prompt { font-size: 1.08rem; }
+    .results-header h2 { font-size: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="hdr-inner">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="cn">ConceptForge</span>
+        <span class="en">CONCEPTFORGE</span>
+      </div>
+      <span class="hdr-tag" id="hdrTag">课题 · TOPIC</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- View 1: 课题视图 -->
+    <section id="view-topic" class="view">
+      <div class="topic-hero">
+        <span class="badge">研究课题 · Research Topic</span>
+        <h1 class="topic-q" id="topicQ"></h1>
+        <div class="topic-bg">
+          <span class="bg-tag">背景</span>
+          <p id="topicBg"></p>
+        </div>
+        <button class="btn btn-primary lg" id="btnStart">开始研究 →</button>
+        <p class="topic-hint muted">先思考，再查证，最后对齐主流定义。整个流程约 10–15 分钟。</p>
+      </div>
+    </section>
+
+    <!-- View 2: 研究流程 -->
+    <section id="view-research" class="view">
+      <div class="research-flow">
+        <div class="topic-recap">
+          <span class="recap-label">研究课题</span>
+          <p class="recap-q" id="recapQ"></p>
+        </div>
+
+        <ol class="stepper" id="stepper" aria-label="研究步骤"></ol>
+
+        <section class="step-panel">
+          <div class="step-meta">
+            <span class="step-tag" id="stepTag"></span>
+            <span class="step-name" id="stepName"></span>
+          </div>
+          <h2 class="step-prompt" id="stepPrompt"></h2>
+          <textarea class="step-textarea" id="stepTextarea" placeholder="在此写下你的思考…" rows="10"></textarea>
+          <div class="step-nav">
+            <button class="btn btn-ghost" id="btnPrev">← 上一步</button>
+            <button class="btn btn-primary" id="btnNext">下一步 →</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- View 3: 结果视图 -->
+    <section id="view-results" class="view">
+      <div class="results">
+        <div id="results-body"></div>
+        <div class="results-actions">
+          <button class="btn btn-primary lg" id="btnRestart">重新开始 →</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <noscript>
+    <p style="color:#e8e6e3;padding:40px;font-family:Georgia,serif">本页面需要启用 JavaScript 才能运行。</p>
+  </noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ===== Mock data (consistent with backend skills + research pedagogy) ===== */
+  var TOPIC = {
+    id: "topic-entropy-demo",
+    question: "为什么热机无论怎么改进，都不能把所有热量转化为有用功？",
+    background: "19 世纪工程师卡诺在研究蒸汽机效率时发现：热从高温流向低温是不可逆的，总有一部分能量以「废热」形式散失。这背后隐藏着一个描述「能量品质退化」的物理量——熵。本课题引导你从热机效率出发，自行逼近「为什么存在无法消除的效率上限」这一核心问题。"
+  };
+
+  // Plausible student conclusion used as the verbatim "your_expression" mock.
+  var STUDENT_CONCLUSION = "热机效率之所以存在一个怎么也突破不了的上限，并不是因为工程上的摩擦或散热——这些理论上可以不断改进——而是因为热从高温流向低温本身就是一个不可逆过程：只要热量在传递，就总有一部分必然以「废热」的形式散到低温端，无法再用来做功。我一开始以为效率上限是摩擦和工程损耗造成的，后来对照卡诺定理和热力学第二定律才意识到，这是物理规律本身的限制，而不是技术不够好。换句话说，存在一个衡量能量「退化」或「混乱」程度的量——熵，孤立系统的熵只会增加不会减少，所以能量虽然守恒，但能做有用功的那部分在不断减少。";
+
+  var EVALUATION = {
+    problem_understanding: {
+      verdict: "良好",
+      detail: "学生抓住了「热机效率存在不可消除的上限」这一核心问题，但未点明「热传递的不可逆性」才是上限的根因。"
+    },
+    evidence_quality: {
+      verdict: "中等",
+      detail: "引用了卡诺循环与热力学第二定律，方向可靠；但缺乏对可逆/不可逆过程的具体量化证据（如 dS=δQ_rev/T）。"
+    },
+    reasoning_chain: {
+      verdict: "基本连贯，存在一处跳步",
+      detail: "从「热量散失」到「存在熵增」的推理成立，但中间跳过了「为什么废热不可逆」的论证环节。"
+    },
+    concept_boundary: {
+      verdict: "需澄清",
+      detail: "学生将「熵」与「混乱度」直接等同，未区分宏观热力学熵与统计熵的适用边界。"
+    },
+    contradiction_handling: {
+      verdict: "正面回应",
+      detail: "学生在「理想可逆热机效率 100%」与「现实中效率远低于此」之间发现矛盾，并尝试用不可逆损耗解释，处理态度积极。"
+    }
+  };
+
+  var ALIGNMENT = {
+    layers: {
+      your_expression: STUDENT_CONCLUSION,
+      rigorous_rewrite: "热机效率之所以存在上限，是因为热力学过程中总有一部分能量以热的形式不可逆地耗散到低温热源，无法再做功；这一不可逆性由状态函数「熵」描述，孤立系统的熵在自发过程中只增不减。",
+      mainstream_definition: "熵 (S) 是热力学中描述系统状态不可逆性的广延量。对可逆过程，其微分定义为 dS = δQ_rev / T（克劳修斯定义）；在统计力学中 S = k_B ln Ω（玻尔兹曼公式），与系统的微观状态数 Ω 相联系。热力学第二定律表述为：孤立系统的熵永不减少（ΔS_孤立 ≥ 0）。熵也是信息论中不确定性（香农熵 H = -Σ p_i log p_i）的度量原型。"
+    },
+    diff: {
+      got_right: "学生正确地认识到「能量损耗/废热」与效率上限相关，并直觉地把握到「存在一种衡量能量退化的量」，方向正确。",
+      missed: "学生未明确熵的「状态函数」属性、未给出可逆过程的定量定义 dS=δQ_rev/T，也未联系到统计力学（玻尔兹曼公式）与信息论层面。",
+      gap: "学生的表述停留在「能量被浪费」的日常语言层面，而主流定义把熵严格限定为可由热量与温度定义的状态函数，并与微观状态数、信息不确定性形成统一数学结构。",
+      why_limited: "主流定义之所以要求「可逆过程 δQ_rev/T」，是因为只有可逆路径下 δQ/T 才是状态函数的微分；不可逆过程中 δQ/T 会低估熵变。限定为状态函数后，熵才能脱离具体过程、用于判断过程方向与自发性，并跨学科（热力学/统计力学/信息论）保持一致。"
+    }
+  };
+
+  var STYLE_SUMMARY = {
+    expression_style: "语言偏书面化但不晦涩，行文较简洁；自觉使用「卡诺定理」「热力学第二定律」等术语支撑论点，但在涉及熵的本质时仍退回到「能量散失/废热」的日常表述，术语使用从「现象层」向「定义层」过渡但未完全到位。",
+    thinking_traits: "明显重证据：以卡诺定理与第二定律为支点支撑结论，而非纯凭直觉；善于自我修正——主动承认「一开始以为是摩擦损耗」并改判为「物理规律本身的限制」；对比意识较弱，未将「可逆/不可逆过程」做对照论证，导致结论的边界感不足。",
+    quality_overall: "本次回答准确抓住了「热机效率存在不可消除的上限」这一核心，并能在证据驱动下修正最初「工程损耗」的直觉判断，闭环完成度较高；不足在于对熵作为状态函数的定量定义（dS=δQ_rev/T）与统计/信息论层面的延伸缺失，论证停留在定性层面。",
+    improvement: "1) 在「收集证据」环节补充一条可逆过程的定量依据（如 dS=δQ_rev/T），把效率上限从「能量散失」推进到「熵增不可逆」的根因；2) 在「临时结论」中显式对比「可逆过程效率上限」与「不可逆过程效率损失」，厘清「物理规律上限」与「工程损耗」两条不同的边界。"
+  };
+
+  /* ===== 5-step research flow (prompts verbatim from approved spec) ===== */
+  var STEPS = [
+    { key: "guess", label: "原始猜想", prompt: "在查任何资料之前，你对这个课题的第一直觉是什么？学生基于已有常识或直觉，写下自己对问题的初步判断。不要求正确，只要求诚实。" },
+    { key: "evidence", label: "收集证据", prompt: "你找到了哪些信息来支持或推翻你的猜想？学生查资料、做推理、找案例。记录关键证据来源。" },
+    { key: "contradiction", label: "遇到矛盾", prompt: "有没有哪些证据和你的猜想不一致？你怎么处理？学生暴露自己理解中的冲突点。这是认知跃迁的关键节点。" },
+    { key: "revision", label: "修正理解", prompt: "根据新证据，你修改了哪些想法？学生记录自己的思维变化。从'我以为'到'我现在认为'。" },
+    { key: "conclusion", label: "临时结论", prompt: "用你自己的话，给出当前对这个问题最完整的解释。学生用自己的语言表达理解。不要求与教材一致，只要求逻辑自洽。" }
+  ];
+
+  /* ===== Display configs (field order from spec) ===== */
+  var DIMENSIONS = [
+    { key: "problem_understanding", label: "问题理解" },
+    { key: "evidence_quality", label: "证据质量" },
+    { key: "reasoning_chain", label: "推理链条" },
+    { key: "concept_boundary", label: "概念边界" },
+    { key: "contradiction_handling", label: "矛盾处理" }
+  ];
+  var LAYERS = [
+    { key: "your_expression", label: "你的表达" },
+    { key: "rigorous_rewrite", label: "严谨改写" },
+    { key: "mainstream_definition", label: "主流定义" }
+  ];
+  var DIFFS = [
+    { key: "got_right", label: "你说对了什么" },
+    { key: "missed", label: "你漏掉了什么" },
+    { key: "gap", label: "你和主流定义差在哪里" },
+    { key: "why_limited", label: "为什么主流定义要这样限定" }
+  ];
+  var STYLE_FIELDS = [
+    { key: "expression_style", label: "表达风格" },
+    { key: "thinking_traits", label: "思维特征" },
+    { key: "quality_overall", label: "质量总评" },
+    { key: "improvement", label: "改进建议" }
+  ];
+
+  /* ===== State ===== */
+  var state = {
+    view: "topic",
+    idx: 0,
+    research: { guess: "", evidence: "", contradiction: "", revision: "", conclusion: "" }
+  };
+
+  /* ===== Helpers ===== */
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  var views = {
+    topic: document.getElementById("view-topic"),
+    research: document.getElementById("view-research"),
+    results: document.getElementById("view-results")
+  };
+
+  function updateHdr() {
+    var t = document.getElementById("hdrTag");
+    if (state.view === "topic") t.textContent = "课题 · TOPIC";
+    else if (state.view === "research") t.textContent = "研究 · RESEARCH · " + (state.idx + 1) + "/" + STEPS.length;
+    else t.textContent = "结果 · RESULTS";
+  }
+
+  function showView(name) {
+    state.view = name;
+    Object.keys(views).forEach(function (k) {
+      views[k].classList.toggle("active", k === name);
+    });
+    updateHdr();
+    window.scrollTo(0, 0);
+  }
+
+  function saveCurrent() {
+    var ta = document.getElementById("stepTextarea");
+    state.research[STEPS[state.idx].key] = ta.value;
+  }
+
+  /* ===== Render: research flow ===== */
+  function renderResearch() {
+    var i = state.idx;
+    var step = STEPS[i];
+
+    var stepper = document.getElementById("stepper");
+    stepper.innerHTML = "";
+    STEPS.forEach(function (s, idx) {
+      var li = el("li", "step");
+      if (idx === i) li.classList.add("active");
+      if (idx < i) li.classList.add("done");
+      li.appendChild(el("span", "step-num", pad2(idx + 1)));
+      li.appendChild(el("span", "step-label", s.label));
+      stepper.appendChild(li);
+    });
+
+    document.getElementById("stepTag").textContent = "第 " + (i + 1) + " 步 / 共 " + STEPS.length + " 步";
+    document.getElementById("stepName").textContent = step.label;
+    document.getElementById("stepPrompt").textContent = step.prompt;
+
+    var ta = document.getElementById("stepTextarea");
+    ta.value = state.research[step.key] || "";
+
+    var btnPrev = document.getElementById("btnPrev");
+    var btnNext = document.getElementById("btnNext");
+    btnPrev.disabled = (i === 0);
+    var isLast = (i === STEPS.length - 1);
+    btnNext.textContent = isLast ? "提交研究" : "下一步 →";
+
+    updateHdr();
+    try { ta.focus(); } catch (e) {}
+  }
+
+  /* ===== Render: results ===== */
+  function renderResults() {
+    var body = document.getElementById("results-body");
+    body.innerHTML = "";
+
+    var header = el("header", "results-header");
+    header.appendChild(el("span", "badge", "评定与对齐 · Evaluation"));
+    header.appendChild(el("h2", null, TOPIC.question));
+    body.appendChild(header);
+
+    /* Module 1: 五维评定 */
+    var m1 = el("section", "module");
+    m1.appendChild(el("h3", "module-title", "五维评定"));
+    var dimList = el("ul", "dim-list");
+    DIMENSIONS.forEach(function (d) {
+      var e = EVALUATION[d.key] || {};
+      var item = el("li", "dim-item");
+      var head = el("div", "dim-head");
+      head.appendChild(el("span", "dim-label", d.label));
+      if (e.verdict) head.appendChild(el("span", "verdict", e.verdict));
+      item.appendChild(head);
+      if (e.detail) item.appendChild(el("p", "dim-detail", e.detail));
+      dimList.appendChild(item);
+    });
+    m1.appendChild(dimList);
+    body.appendChild(m1);
+
+    /* Module 2: 三层对齐 + 差异说明 */
+    var m2 = el("section", "module");
+    m2.appendChild(el("h3", "module-title", "三层对齐 · 表述与差异"));
+    m2.appendChild(el("span", "sub-title first", "三层表述"));
+    var stack = el("div", "layer-stack");
+    LAYERS.forEach(function (l) {
+      var card = el("article", "layer-card");
+      card.appendChild(el("span", "layer-tag", l.label));
+      card.appendChild(el("p", "layer-text", ALIGNMENT.layers[l.key] || "—"));
+      stack.appendChild(card);
+    });
+    m2.appendChild(stack);
+    m2.appendChild(el("span", "sub-title", "差异说明"));
+    var diffList = el("ul", "diff-list");
+    DIFFS.forEach(function (d) {
+      var item = el("li", "diff-item");
+      item.appendChild(el("span", "diff-label", d.label));
+      item.appendChild(el("p", "diff-text", ALIGNMENT.diff[d.key] || "—"));
+      diffList.appendChild(item);
+    });
+    m2.appendChild(diffList);
+    body.appendChild(m2);
+
+    /* Module 3: 风格与质量总结 (on-demand, hidden by default) */
+    var toggleWrap = el("div", null);
+    toggleWrap.style.textAlign = "center";
+    toggleWrap.style.marginBottom = "24px";
+    var toggleBtn = el("button", "btn btn-ghost", "查看风格与质量总结");
+    toggleWrap.appendChild(toggleBtn);
+    body.appendChild(toggleWrap);
+
+    var m3 = el("section", "module");
+    m3.style.display = "none";
+    m3.appendChild(el("h3", "module-title", "风格与质量总结"));
+    var sList = el("ul", "diff-list");
+    STYLE_FIELDS.forEach(function (f) {
+      var item = el("li", "diff-item");
+      item.appendChild(el("span", "diff-label", f.label));
+      item.appendChild(el("p", "diff-text", STYLE_SUMMARY[f.key] || "—"));
+      sList.appendChild(item);
+    });
+    m3.appendChild(sList);
+    body.appendChild(m3);
+
+    toggleBtn.addEventListener("click", function () {
+      if (m3.style.display === "none") {
+        m3.style.display = "block";
+        toggleBtn.textContent = "收起风格总结";
+      } else {
+        m3.style.display = "none";
+        toggleBtn.textContent = "查看风格与质量总结";
+      }
+    });
+  }
+
+  /* ===== Navigation ===== */
+  function startResearch() {
+    state.idx = 0;
+    showView("research");
+    renderResearch();
+  }
+  function prevStep() {
+    saveCurrent();
+    if (state.idx > 0) { state.idx--; renderResearch(); window.scrollTo(0, 0); }
+  }
+  function nextStep() {
+    saveCurrent();
+    if (state.idx < STEPS.length - 1) { state.idx++; renderResearch(); window.scrollTo(0, 0); }
+    else { showView("results"); renderResults(); }
+  }
+  function restart() {
+    state.idx = 0;
+    state.research = { guess: "", evidence: "", contradiction: "", revision: "", conclusion: "" };
+    var ta = document.getElementById("stepTextarea");
+    if (ta) ta.value = "";
+    showView("topic");
+  }
+
+  /* ===== Init ===== */
+  function init() {
+    document.getElementById("topicQ").textContent = TOPIC.question;
+    document.getElementById("topicBg").textContent = TOPIC.background;
+    document.getElementById("recapQ").textContent = TOPIC.question;
+
+    document.getElementById("btnStart").addEventListener("click", startResearch);
+    document.getElementById("btnPrev").addEventListener("click", prevStep);
+    document.getElementById("btnNext").addEventListener("click", nextStep);
+    document.getElementById("btnRestart").addEventListener("click", restart);
+
+    showView("topic");
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

@@ -37,8 +37,9 @@ export default function ResultsView({ submissionId, onRestart }) {
   const [error, setError] = useState(null)
 
   const [styleSummary, setStyleSummary] = useState(null)
-  const [styleLoading, setStyleLoading] = useState(true)
+  const [styleLoading, setStyleLoading] = useState(false)
   const [styleError, setStyleError] = useState(null)
+  const [styleExpanded, setStyleExpanded] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -59,26 +60,17 @@ export default function ResultsView({ submissionId, onRestart }) {
     }
   }, [submissionId])
 
-  // Independent fetch for the style summary (separate dedicated endpoint).
-  // A slow/failed summary fetch must NOT block the main evaluation modules.
-  useEffect(() => {
-    let alive = true
+  // On-demand fetch for the style summary. Triggered only when the user
+  // clicks the "查看风格与质量总结" button, so a slow/failed summary fetch
+  // never blocks the main evaluation modules.
+  const loadStyleSummary = () => {
     setStyleLoading(true)
     setStyleError(null)
     fetchStyleSummary(submissionId)
-      .then((d) => {
-        if (alive) setStyleSummary(d)
-      })
-      .catch((e) => {
-        if (alive) setStyleError(e.message || '获取风格总结失败')
-      })
-      .finally(() => {
-        if (alive) setStyleLoading(false)
-      })
-    return () => {
-      alive = false
-    }
-  }, [submissionId])
+      .then((d) => setStyleSummary(d))
+      .catch((e) => setStyleError(e.message || '获取风格总结失败'))
+      .finally(() => setStyleLoading(false))
+  }
 
   if (loading) {
     return (
@@ -162,19 +154,34 @@ export default function ResultsView({ submissionId, onRestart }) {
       {/* 风格与质量总结 */}
       <section className="module">
         <h3 className="module-title">风格与质量总结</h3>
-        {styleLoading ? (
+        {!styleExpanded && !styleSummary && (
+          <button className="btn btn-primary" onClick={() => { setStyleExpanded(true); loadStyleSummary() }}>
+            查看风格与质量总结
+          </button>
+        )}
+        {styleExpanded && styleLoading && (
           <p className="module-note">正在生成风格总结…</p>
-        ) : styleError ? (
-          <p className="module-note">暂无风格总结</p>
-        ) : (
-          <ul className="diff-list">
-            {STYLE_FIELDS.map(({ key, label }) => (
-              <li key={key} className="diff-item">
-                <span className="diff-label">{label}</span>
-                <p className="diff-text">{styleSummary?.[key] || '—'}</p>
-              </li>
-            ))}
-          </ul>
+        )}
+        {styleExpanded && styleError && (
+          <div>
+            <p className="module-note">{styleError}</p>
+            <button className="btn btn-primary" onClick={loadStyleSummary}>重试</button>
+          </div>
+        )}
+        {styleExpanded && styleSummary && !styleLoading && (
+          <>
+            <ul className="diff-list">
+              {STYLE_FIELDS.map(({ key, label }) => (
+                <li key={key} className="diff-item">
+                  <span className="diff-label">{label}</span>
+                  <p className="diff-text">{styleSummary?.[key] || '—'}</p>
+                </li>
+              ))}
+            </ul>
+            <button className="btn btn-primary" onClick={() => setStyleExpanded(false)} style={{ marginTop: 12 }}>
+              收起风格总结
+            </button>
+          </>
         )}
       </section>
 
