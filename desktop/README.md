@@ -29,27 +29,55 @@ desktop/frontend/ (Vite + React)
 - Python 3.10+
 - 桌面环境（PyWebView 需要图形界面）
 
-### 1. 安装 Python 依赖
+### 一键安装
+
+提供跨平台安装脚本，自动创建虚拟环境并安装依赖：
+
+**Linux / macOS:**
 ```bash
-pip install -r desktop/requirements.txt
+bash desktop/setup.sh
 ```
 
-Linux 额外需要 WebKitGTK:
-```bash
-# Ubuntu/Debian
-sudo apt install libwebkit2gtk-4.1-dev
-# 或旧版
-sudo apt install libwebkit2gtk-4.0-dev
+**Windows:**
+双击 `desktop/setup.bat`，或命令行执行：
+```cmd
+desktop\setup.bat
 ```
 
-Windows 无额外依赖（Win10+ 自带 Edge WebView2）。
+脚本会自动：
+1. 检查 Python 3.10+
+2. 创建虚拟环境 `.venv`
+3. 安装 `requirements.txt` 中所有依赖
+4. Linux 检测 WebKitGTK 系统依赖（缺失时给出安装命令）
+5. 检查前端构建产物是否就绪
 
-### 2. 运行
+> Linux 用户若脚本提示 WebKitGTK 缺失，需手动安装：
+> ```bash
+> sudo apt install libwebkit2gtk-4.1-dev   # Ubuntu/Debian
+> ```
+> Windows 无额外系统依赖（Win10+ 自带 Edge WebView2）。
+
+### 运行
 ```bash
+# Linux/macOS
+source desktop/.venv/bin/activate
 python desktop/main.py
+
+# Windows
+desktop\.venv\Scripts\activate
+python desktop\main.py
 ```
 
 > 首次启动为 mock 模式，可直接体验完整流程。接入 LLM 见下方"使用流程"。
+
+### 手动安装（不想用脚本）
+
+如跳过脚本手动安装：
+```bash
+python -m venv desktop/.venv
+source desktop/.venv/bin/activate   # Windows: desktop\.venv\Scripts\activate
+pip install -r desktop/requirements.txt
+```
 
 ## 开发模式（修改前端源码时才需要）
 
@@ -117,6 +145,8 @@ desktop/
 ├── config.py            # 用户配置持久化 (跨平台路径)
 ├── build_frontend.py    # 前端构建脚本
 ├── build.spec           # PyInstaller 打包配置
+├── setup.sh             # 一键安装脚本 (Linux/macOS)
+├── setup.bat            # 一键安装脚本 (Windows)
 ├── requirements.txt     # Python 依赖
 ├── assets/              # 前端构建产物 (npm run build 生成)
 │   ├── index.html
