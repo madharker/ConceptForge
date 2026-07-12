@@ -22,6 +22,7 @@ export default function App() {
   const [loadingTopic, setLoadingTopic] = useState(true)
   const [topicError, setTopicError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false) // 防止重复提交：一次提交后锁定，直到 restart 重置
   const [submitError, setSubmitError] = useState(null)
 
   const [mockMode, setMockMode] = useState(null) // null = unknown
@@ -59,7 +60,9 @@ export default function App() {
   }
 
   async function handleSubmit(researchData) {
+    if (submitted) return // 双保险：已提交过直接拒绝
     setSubmitting(true)
+    setSubmitted(true)
     setSubmitError(null)
     try {
       const res = await submitResearch({
@@ -79,6 +82,7 @@ export default function App() {
     setResearch(EMPTY_RESEARCH)
     setSubmissionId(null)
     setSubmitError(null)
+    setSubmitted(false)
     setView('topic')
     loadTopic()
   }
@@ -135,6 +139,7 @@ export default function App() {
             setResearch={setResearch}
             onSubmit={handleSubmit}
             submitting={submitting}
+            submitted={submitted}
             submitError={submitError}
           />
         )}

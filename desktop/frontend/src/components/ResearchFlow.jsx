@@ -36,6 +36,7 @@ export default function ResearchFlow({
   setResearch,
   onSubmit,
   submitting,
+  submitted,
   submitError,
 }) {
   const [idx, setIdx] = useState(0)
@@ -135,9 +136,9 @@ export default function ResearchFlow({
             <button
               className="btn btn-primary"
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || submitted}
             >
-              {submitting ? '提交中…' : '提交研究'}
+              {submitting ? '提交中…' : submitted ? '已提交' : '提交研究'}
             </button>
           ) : (
             <button className="btn btn-primary" onClick={next}>
