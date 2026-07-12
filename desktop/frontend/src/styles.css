@@ -4,13 +4,15 @@
   --bg3: #1c2030;
   --ink: #e8e6e3;
   --muted: #8a8f98;
-  --rule: #2a2d35;
-  --rule2: #3a3f4a;
+  --rule: #3a3f4a;
+  --rule2: #4a5160;
   --accent: #c9a96e;
   --accent-hi: #d8b87c;
   --accent2: #7eb8a2;
   --danger: #d98a8a;
   --font: 'Lora', 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   --font-mono: 'JetBrains Mono', 'GeistMono', ui-monospace, monospace;
   --max: 880px;
 }
@@ -412,7 +414,7 @@ body::before {
   border: 1px solid var(--rule2);
   border-radius: 8px;
   padding: 16px 18px;
-  font-family: var(--font);
+  font-family: var(--font-ui);
   font-size: 1rem;
   line-height: 1.75;
   color: var(--ink);

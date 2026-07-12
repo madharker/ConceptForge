@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fetchNewTopic, submitResearch, fetchSettings } from './api'
 import TopicView from './components/TopicView'
 import ResearchFlow from './components/ResearchFlow'
@@ -26,21 +26,40 @@ export default function App() {
 
   const [mockMode, setMockMode] = useState(null) // null = unknown
 
+  // 用于取消进行中的 fetchNewTopic 请求，防止快速重试时旧响应覆盖新响应
+  const topicAbortRef = useRef(null)
+
   useEffect(() => {
     loadTopic()
     loadSettings()
+    return () => {
+      // 组件卸载时取消进行中的请求
+      if (topicAbortRef.current) topicAbortRef.current.abort()
+    }
   }, [])
 
   async function loadTopic() {
+    // 取消上一次进行中的请求
+    if (topicAbortRef.current) topicAbortRef.current.abort()
+    const controller = new AbortController()
+    topicAbortRef.current = controller
+
     setLoadingTopic(true)
     setTopicError(null)
     try {
-      const t = await fetchNewTopic()
+      const t = await fetchNewTopic(undefined, controller.signal)
+      // 请求已被后续调用取消，丢弃结果
+      if (controller.signal.aborted) return
       setTopic(t)
     } catch (e) {
+      // AbortError 是正常的取消行为，不当作错误处理
+      if (e.name === 'AbortError') return
       setTopicError(e.message || '无法连接到服务器')
     } finally {
-      setLoadingTopic(false)
+      // 仅当这是当前活跃的请求时才结束 loading
+      if (topicAbortRef.current === controller) {
+        setLoadingTopic(false)
+      }
     }
   }
 

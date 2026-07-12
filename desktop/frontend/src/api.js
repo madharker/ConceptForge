@@ -13,11 +13,13 @@ function handleError(res, fallback) {
 }
 
 // GET /api/topics/new?subject=<optional> -> { id, question, background }
-export async function fetchNewTopic(subject) {
+// signal: 可选 AbortSignal，用于取消请求防止竞态（旧响应覆盖新）
+export async function fetchNewTopic(subject, signal) {
   const url = new URL(`${BASE}/api/topics/new`)
   if (subject) url.searchParams.set('subject', subject)
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
+    signal,
   })
   handleError(res, '获取课题失败')
   return res.json()
