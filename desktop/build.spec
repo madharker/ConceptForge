@@ -86,7 +86,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,  # 无控制台窗口（GUI 应用）
-    icon=os.path.join(ROOT, "icon.ico"),  # 应用图标（铁砧+火焰）
+    icon=os.path.join(ROOT, "icon.ico"),  # 应用图标
 )
 
 coll = COLLECT(
