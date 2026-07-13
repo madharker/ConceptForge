@@ -25,11 +25,21 @@
 
 无需服务器、无需域名备案、无需配置环境变量。下载即用。
 
-- **Windows 下载**：[Releases 页](https://github.com/madharker/ConceptForge/releases) 下载 zip，解压双击 `ConceptForge.exe`
+- **Windows EXE**：[Releases 页](https://github.com/madharker/ConceptForge/releases) 下载 zip，解压双击 `ConceptForge.exe`
+- **EXE 跑不起来？用双脚本方案**（需要 Python 3.10+）：
+  ```bash
+  git clone https://github.com/madharker/ConceptForge.git
+  cd ConceptForge
+  git checkout desktop
+  desktop\setup.bat    # 首次运行：装依赖（约 2-3 分钟）
+  desktop\run.bat      # 以后双击启动
+  ```
+  双脚本方案走原生 Python，不经 PyInstaller 打包，兼容性最好。
 - **源码运行**（Linux/macOS/Windows）：见 [desktop/README.md](desktop/README.md)
 
 桌面端特点：
-- PyWebView + FastAPI 本地运行，LLM 调用直连用户自接入的 API
+- FastAPI 本地起后端 + Edge --app 模式开窗口（Win10/11 自带 Edge，无需额外运行时）
+- LLM 调用直连用户自接入的 API，数据不经第三方
 - 无 API key 时自动走 **mock 模式**，开箱即可体验完整流程
 - LLM 配置持久化在用户目录，重启不丢
 - 流式调用 + 空闲超时检测，模型卡住时前端可见
@@ -89,14 +99,14 @@ ConceptForge/
 │       ├── skills/       # 课题/收集/评定/对齐/风格总结
 │       ├── routers/      # REST 端点
 │       └── llm_client.py # OpenAI 兼容客户端 + mock 回退 + 流式超时
-├── desktop/              # PyWebView 桌面端 (复用 backend)
-│   ├── main.py           # 入口：起后端线程 + 注入端口 + 开窗口
-│   ├── app.py            # FastAPI app + /api/settings + /api/llm/logs
+├── desktop/              # 桌面端 (FastAPI + Edge --app 窗口)
+│   ├── main.py           # 入口：起后端线程 + Edge --app 开窗口
+│   ├── app.py            # FastAPI app + /api/settings + /api/llm/logs + 静态文件
 │   ├── frontend/         # Vite + React 源码
 │   ├── assets/           # 前端构建产物（已包含，普通用户无需 Node.js）
-│   ├── build.spec        # PyInstaller 打包配置
-│   ├── setup.sh/.bat     # 一键安装
-│   └── run.sh/.bat       # 一键运行
+│   ├── build.spec        # PyInstaller 打包配置（EXE 方案）
+│   ├── setup.bat         # 双脚本方案：一键安装
+│   └── run.bat           # 双脚本方案：一键运行
 ├── frontend/             # Web 端前端（独立部署用）
 └── .github/workflows/    # Windows EXE 自动构建
 ```
@@ -129,8 +139,8 @@ git push origin v0.x.x
 
 - **后端**：Python 3.10+ / FastAPI / uvicorn / OpenAI SDK（兼容接口）
 - **前端**：Vite + React（JavaScript）/ 纯 CSS 深色衬线主题
-- **桌面端**：PyWebView（Windows 用 Edge WebView2，Linux 用 WebKitGTK，macOS 用 WebKit）
-- **打包**：PyInstaller（目录模式）+ GitHub Actions（Windows 自动构建）
+- **桌面端**：FastAPI 本地后端 + Edge --app 模式开窗口（Windows）；其他平台用默认浏览器
+- **打包**：PyInstaller（目录模式）+ GitHub Actions（Windows 自动构建）；另有双脚本方案作为 fallback
 
 ## Vibe Coding 声明
 
