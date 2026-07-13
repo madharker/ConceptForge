@@ -86,6 +86,30 @@ pip install -r desktop/requirements.txt
 bash desktop/run.sh                 # Windows: desktop\run.bat
 ```
 
+## 更新到新版本
+
+仓库推送新版本后，无需删除现有环境，运行更新脚本即可：
+
+**Linux / macOS:**
+```bash
+bash desktop/update.sh
+```
+
+**Windows:**
+双击 `desktop/update.bat`，或命令行执行：
+```cmd
+desktop\update.bat
+```
+
+脚本会自动：
+1. `git pull` 拉取最新代码
+2. 检测 `requirements.txt` 是否变化，变化时才更新依赖（未变化则跳过，省时间）
+3. 现有 `.venv` 和前端产物 `assets/` 均保留，无需重新安装
+
+更新完成后运行 `bash desktop/run.sh`（Windows: `desktop\run.bat`）即可使用新版本。
+
+> 若 `git pull` 出现冲突（通常因本地修改了仓库文件），脚本会提示，手动解决冲突后重新运行即可。
+
 ## 开发模式（修改前端源码时才需要）
 
 仅当你需要修改 `desktop/frontend/` 下的 React 源码并重新构建时，才需要 Node.js。普通使用请跳过本节。
