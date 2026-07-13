@@ -58,15 +58,21 @@ desktop\setup.bat
 > Windows 无额外系统依赖（Win10+ 自带 Edge WebView2）。
 
 ### 运行
-```bash
-# Linux/macOS
-source desktop/.venv/bin/activate
-python desktop/main.py
 
-# Windows
-desktop\.venv\Scripts\activate
-python desktop\main.py
+安装完成后，用启动脚本即可，**无需手动激活虚拟环境**：
+
+**Linux / macOS:**
+```bash
+bash desktop/run.sh
 ```
+
+**Windows:**
+双击 `desktop/run.bat`，或命令行执行：
+```cmd
+desktop\run.bat
+```
+
+启动脚本会自动调用 `.venv` 中的 Python 运行 `main.py`，无需 `source activate`。
 
 > 首次启动为 mock 模式，可直接体验完整流程。接入 LLM 见下方"使用流程"。
 
@@ -77,6 +83,7 @@ python desktop\main.py
 python -m venv desktop/.venv
 source desktop/.venv/bin/activate   # Windows: desktop\.venv\Scripts\activate
 pip install -r desktop/requirements.txt
+bash desktop/run.sh                 # Windows: desktop\run.bat
 ```
 
 ## 开发模式（修改前端源码时才需要）
