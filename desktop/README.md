@@ -30,8 +30,8 @@ desktop/frontend/ (Vite + React)
   - Linux: `sudo apt install git`（Debian/Ubuntu）或 `sudo dnf install git`（Fedora）
   - macOS: `brew install git` 或安装 Xcode Command Line Tools（`xcode-select --install`）
   - Windows: 从 https://git-scm.com/download/win 下载安装，安装时一路默认即可
-- **Python 3.10+**（https://www.python.org/downloads/）
-  - Windows 安装时务必勾选 "Add Python to PATH"
+- **Python 3.10+**（[直链下载 64 位安装包](https://www.python.org/ftp/python/3.13.14/python-3.13.14-amd64.exe)，安装时务必勾选 "Add Python to PATH"）
+  > 注意：python.org 官网首页可能引导到 Microsoft Store 版本，请用上面的直链下载。Store 版本可能无法正常工作。
 - 桌面环境（PyWebView 需要图形界面）
 
 ### 获取代码

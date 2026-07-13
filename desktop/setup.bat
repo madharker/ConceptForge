@@ -31,15 +31,15 @@ if "!PY_CMD!"=="" (
     echo.
     echo [ERROR] Python is not installed on this system.
     echo.
-    echo Please download and install Python 3.10+ from:
-    echo   https://www.python.org/downloads/
+    echo Please download and install Python 3.10+ ^(64-bit^):
+    echo   https://www.python.org/ftp/python/3.13.14/python-3.13.14-amd64.exe
     echo.
     echo During installation, you MUST:
-    echo   1. Check "Add Python to PATH" (bottom of installer)
+    echo   1. Check "Add Python to PATH" ^(bottom of installer window^)
     echo   2. Click "Install Now"
     echo.
     echo After install, CLOSE this window and re-run setup.bat.
-    echo Do NOT use Microsoft Store version - it may not work correctly.
+    echo Do NOT use Microsoft Store version - it will not work.
     echo.
     pause
     exit /b 1
@@ -53,9 +53,11 @@ if errorlevel 1 (
     echo.
     echo This is likely the Microsoft Store Python stub, which does not work.
     echo.
-    echo Fix: Install real Python from https://www.python.org/downloads/
-    echo   - Check "Add Python to PATH" during install
-    echo   - After install, close this window and re-run setup.bat
+    echo Fix: Install real Python from the direct link below:
+    echo   https://www.python.org/ftp/python/3.13.14/python-3.13.14-amd64.exe
+    echo.
+    echo During install, check "Add Python to PATH" then "Install Now".
+    echo After install, close this window and re-run setup.bat.
     echo.
     pause
     exit /b 1
