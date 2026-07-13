@@ -12,58 +12,89 @@ echo Working dir: %CD%
 echo.
 
 REM ---------- 1. Check Python ----------
-REM Prefer `py -3` (official launcher, always works if Python installed).
-REM Fall back to `python` (may be Windows Store stub - will fail below).
+REM Strategy: bypass PATH (Store stub may shadow real Python).
+REM   1. Try `py -3` launcher with a real script test (-c, not --version)
+REM   2. Try scanning common install locations for python.exe directly
+REM   3. Try `python` from PATH as last resort
 echo [1/4] Checking Python...
 
 set PY_CMD=
-py -3 --version >nul 2>&1
+
+REM 1a. Try py launcher (tests with -c, not --version, to reject Store stubs)
+py -3 -c "import sys" >nul 2>&1
 if not errorlevel 1 (
     set PY_CMD=py -3
-) else (
-    python --version >nul 2>&1
-    if not errorlevel 1 (
-        set PY_CMD=python
+    goto :found_python
+)
+
+REM 1b. Scan common install locations (bypasses PATH/Store stub entirely)
+REM     python.org default user install: %LOCALAPPDATA%\Programs\Python\Python3xx\
+for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do (
+    if exist "%%D\python.exe" (
+        "%%D\python.exe" -c "import sys" >nul 2>&1
+        if not errorlevel 1 (
+            set PY_CMD="%%D\python.exe"
+            goto :found_python
+        )
+    )
+)
+REM     All-users install: C:\Program Files\Python3xx\
+for /d %%D in ("C:\Program Files\Python\Python3*") do (
+    if exist "%%D\python.exe" (
+        "%%D\python.exe" -c "import sys" >nul 2>&1
+        if not errorlevel 1 (
+            set PY_CMD="%%D\python.exe"
+            goto :found_python
+        )
+    )
+)
+REM     Legacy install: C:\Python3xx\
+for /d %%D in ("C:\Python3*") do (
+    if exist "%%D\python.exe" (
+        "%%D\python.exe" -c "import sys" >nul 2>&1
+        if not errorlevel 1 (
+            set PY_CMD="%%D\python.exe"
+            goto :found_python
+        )
     )
 )
 
-if "!PY_CMD!"=="" (
-    echo.
-    echo [ERROR] Python is not installed on this system.
-    echo.
-    echo Please download and install Python 3.10+ ^(64-bit^):
-    echo   https://www.python.org/ftp/python/3.13.14/python-3.13.14-amd64.exe
-    echo.
-    echo During installation, you MUST:
-    echo   1. Check "Add Python to PATH" ^(bottom of installer window^)
-    echo   2. Click "Install Now"
-    echo.
-    echo After install:
-    echo   1. CLOSE all command prompt / PowerShell windows
-    echo   2. Open a NEW window and re-run setup.bat
-    echo   If still failing, log off and back on ^(or restart Windows^).
-    echo Do NOT use Microsoft Store version - it will not work.
-    echo.
-    pause
-    exit /b 1
+REM 1c. Last resort: `python` from PATH (may be Store stub, test with -c)
+python -c "import sys" >nul 2>&1
+if not errorlevel 1 (
+    set PY_CMD=python
+    goto :found_python
 )
 
+REM Nothing worked
+echo.
+echo [ERROR] Could not find a working Python 3.10+ on this system.
+echo.
+echo The `python` command on this PC is likely the Microsoft Store stub,
+echo which cannot run scripts. A real Python install is required.
+echo.
+echo Please install Python 3.10+ ^(64-bit^) from this direct link:
+echo   https://www.python.org/ftp/python/3.13.14/python-3.13.14-amd64.exe
+echo.
+echo During installation:
+echo   1. Check "Add Python to PATH" ^(bottom of installer window^)
+echo   2. Click "Install Now"
+echo   3. Let it finish completely
+echo.
+echo After install, CLOSE this window and re-run setup.bat.
+echo This script scans install locations directly, so even if PATH is
+echo not set, it should find Python automatically.
+echo.
+pause
+    exit /b 1
+
+:found_python
 REM Write version to temp file (avoids for/f parsing issues with python output)
 !PY_CMD! -c "import sys; open('_pyver.txt','w').write('%d.%d' % (sys.version_info.major, sys.version_info.minor))"
 if errorlevel 1 (
     echo.
     echo [ERROR] Python was found but cannot execute scripts.
-    echo.
-    echo This is likely the Microsoft Store Python stub, which does not work.
-    echo.
-    echo Fix: Install real Python from the direct link below:
-    echo   https://www.python.org/ftp/python/3.13.14/python-3.13.14-amd64.exe
-    echo.
-    echo During install, check "Add Python to PATH" then "Install Now".
-    echo After install:
-    echo   1. CLOSE all command prompt / PowerShell windows
-    echo   2. Open a NEW window and re-run setup.bat
-    echo   If still failing, log off and back on ^(or restart Windows^).
+    echo This should not happen - please report this issue.
     echo.
     pause
     exit /b 1
