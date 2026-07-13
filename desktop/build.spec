@@ -32,10 +32,14 @@ for p in (ROOT, BACKEND_DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# 收集 PyWebView、FastAPI、Uvicorn、OpenAI 的数据文件
+# 收集 PyWebView、FastAPI、Uvicorn、OpenAI、pythonnet 的数据文件
+# pythonnet/clr_loader 必须显式收集，否则 Python.Runtime.dll 不会被打包，
+# 导致 frozen exe 在 webview.start() 时报：
+#   RuntimeError: Failed to resolve Python.Runtime.Loader.Initialize
 datas = []
 binaries = []
-for pkg in ["webview", "fastapi", "uvicorn", "openai", "pydantic"]:
+for pkg in ["webview", "fastapi", "uvicorn", "openai", "pydantic",
+            "pythonnet", "clr_loader", "pythonnet_dotnet"]:
     d, b, _ = collect_all(pkg)
     datas += d
     binaries += b
