@@ -29,13 +29,17 @@ if not errorlevel 1 (
 
 if "!PY_CMD!"=="" (
     echo.
-    echo [ERROR] Python not found or not usable.
-    echo Please install Python 3.10+ from https://www.python.org/downloads/
-    echo Install tips:
-    echo   - Check "Add Python to PATH" during install
-    echo   - Or use the official launcher `py` (installed with Python)
-    echo   - If Windows Store opens when you type `python`, disable:
-    echo     Settings ^> Apps ^> Advanced app settings ^> App execution aliases ^> off Python
+    echo [ERROR] Python is not installed on this system.
+    echo.
+    echo Please download and install Python 3.10+ from:
+    echo   https://www.python.org/downloads/
+    echo.
+    echo During installation, you MUST:
+    echo   1. Check "Add Python to PATH" (bottom of installer)
+    echo   2. Click "Install Now"
+    echo.
+    echo After install, CLOSE this window and re-run setup.bat.
+    echo Do NOT use Microsoft Store version - it may not work correctly.
     echo.
     pause
     exit /b 1
@@ -45,13 +49,13 @@ REM Write version to temp file (avoids for/f parsing issues with python output)
 !PY_CMD! -c "import sys; open('_pyver.txt','w').write('%d.%d' % (sys.version_info.major, sys.version_info.minor))"
 if errorlevel 1 (
     echo.
-    echo [ERROR] Found Python but it failed to run a script.
-    echo This usually means `python` is the Windows Store stub.
-    echo Fixes:
-    echo   1. Disable Windows Store python alias (Settings ^> Apps ^>
-    echo      Advanced app settings ^> App execution aliases ^> off Python)
-    echo   2. Reinstall Python from python.org with "Add to PATH" checked
-    echo   3. Or use the `py` launcher (comes with Python installer)
+    echo [ERROR] Python was found but cannot execute scripts.
+    echo.
+    echo This is likely the Microsoft Store Python stub, which does not work.
+    echo.
+    echo Fix: Install real Python from https://www.python.org/downloads/
+    echo   - Check "Add Python to PATH" during install
+    echo   - After install, close this window and re-run setup.bat
     echo.
     pause
     exit /b 1
