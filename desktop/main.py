@@ -112,4 +112,16 @@ def main():
     # Window closed — process exits, daemon thread dies
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        print("[main] FATAL:", flush=True)
+        traceback.print_exc()
+    finally:
+        # Keep console open on crash so the error is readable
+        print("\n[main] Press Enter to exit...", flush=True)
+        try:
+            input()
+        except EOFError:
+            pass
