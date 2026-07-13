@@ -1,29 +1,30 @@
 """ConceptForge desktop app entry point.
 
-Starts the FastAPI backend (which also serves the built frontend) on a
-random localhost port, then opens the app in Edge's --app mode — a
-chromeless window that looks like a native app.
+Starts the FastAPI backend on a random localhost port, then opens the app
+in a pywebview native window pointing at the bundled assets/index.html.
 
-This replaces pywebview, whose default Windows backend (WinForms) depends
-on pythonnet (CLR bridge). pythonnet's Python.Runtime.dll fails to
-initialize under PyInstaller 6.x, causing a crash at webview.start().
-Using Edge --app mode bypasses pythonnet entirely and relies on the
-system WebView2/Edge runtime (preinstalled on Win10/11).
+The frontend learns the backend port via one of two mechanisms:
+  1. A bootstrap file `assets/__port__.js` written at runtime containing
+     `window.__CF_PORT__=<port>;` (preferred — works under file://).
+  2. A `?port=<port>` query string appended to the index URL (fallback
+     when the assets directory is not writable, e.g. frozen EXE).
 
-For development, the backend serves desktop/assets/index.html if it
-exists; otherwise point a browser at the dev server.
+This is the pure-pywebview variant for the double-script (setup.bat +
+run.bat) flow. Running under a normal Python interpreter, pywebview's
+WinForms backend (pythonnet) initializes without issue — the pythonnet
+problems only occur under PyInstaller frozen mode, which this branch
+does not use.
 """
 from __future__ import annotations
-import os
-import shutil
 import socket
-import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 import uvicorn
+import webview
 
 # PyInstaller frozen mode: bundled resources live under sys._MEIPASS
 if getattr(sys, "frozen", False):
@@ -33,6 +34,7 @@ if getattr(sys, "frozen", False):
 else:
     DESKTOP_DIR = Path(__file__).resolve().parent
     BACKEND_DIR = DESKTOP_DIR.parent / "backend"
+ASSETS_DIR = DESKTOP_DIR / "assets"
 
 
 def find_free_port() -> int:
@@ -66,56 +68,19 @@ def start_backend(port: int):
         traceback.print_exc()
 
 
-def open_app_window(url: str, width: int = 1100, height: int = 780) -> bool:
-    """Open url in Edge --app mode (window without browser chrome).
+def inject_port(port: int) -> bool:
+    """Write a bootstrap JS file telling the frontend which port to use.
 
-    Falls back to the default browser if Edge is not found.
-    Returns True if Edge was used.
+    Returns True on success. Under file:// the frontend loads this script
+    via a <script src="__port__.js"></script> tag; under http:// it is
+    ignored (the frontend reads its own origin instead).
     """
-    if sys.platform != "win32":
-        import webbrowser
-        webbrowser.open(url)
+    bootstrap = ASSETS_DIR / "__port__.js"
+    try:
+        bootstrap.write_text(f"window.__CF_PORT__={port};", encoding="utf-8")
+        return True
+    except (PermissionError, OSError):
         return False
-
-    # Common Edge installation paths on Windows
-    edge_candidates = [
-        os.environ.get("EDGE_PATH", ""),
-        shutil.which("msedge"),
-        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-    ]
-    for path in edge_candidates:
-        if path and os.path.isfile(path):
-            try:
-                subprocess.Popen([
-                    path,
-                    f"--app={url}",
-                    f"--window-size={width},{height}",
-                    "--disable-extensions",
-                    "--no-default-browser-check",
-                    "--no-first-run",
-                ])
-                return True
-            except OSError:
-                continue
-
-    # Fallback: default browser
-    import webbrowser
-    webbrowser.open(url)
-    return False
-
-
-def try_pywebview(url: str, width: int = 1100, height: int = 780) -> bool:
-    """Open url in a pywebview window.
-
-    Returns True if pywebview was used. In PyInstaller frozen mode,
-    pythonnet (PyWebView's WinForms backend) cannot initialize, so this
-    function raises and the caller falls back to Edge --app mode.
-    """
-    import webview
-    webview.create_window("ConceptForge", url, width=width, height=height)
-    webview.start()
-    return True
 
 
 def main():
@@ -125,7 +90,6 @@ def main():
     t.start()
 
     # Wait for backend to be ready
-    import urllib.request
     backend_ready = False
     for _ in range(50):
         try:
@@ -141,33 +105,23 @@ def main():
 
     print(f"[main] backend ready on port {port}", flush=True)
 
-    url = f"http://127.0.0.1:{port}"
+    # Tell the frontend which port the backend is on.
+    port_written = inject_port(port)
 
-    # Try pywebview first (native window, best UX).
-    # In frozen (EXE) mode this fails due to pythonnet incompatibility,
-    # so we fall back to Edge --app mode.
-    try:
-        print("[main] trying pywebview...", flush=True)
-        try_pywebview(url)
-        print("[main] pywebview window closed", flush=True)
-        return
-    except Exception as e:
-        print(f"[main] pywebview unavailable ({e}), falling back to Edge --app", flush=True)
-
-    # Fallback: Edge --app mode (chromeless window, no pythonnet needed)
-    used_edge = open_app_window(url)
-    if used_edge:
-        print(f"[main] opened in Edge app mode: {url}", flush=True)
+    # Load the bundled frontend. Prefer file:// over the backend's static
+    # mount so the window is independent of the backend serving path.
+    index = ASSETS_DIR / "index.html"
+    if index.exists():
+        url = index.as_uri()
+        if not port_written:
+            url = f"{url}?port={port}"
     else:
-        print(f"[main] opened in default browser: {url}", flush=True)
+        # Fallback: let the backend serve the frontend (if mounted).
+        url = f"http://127.0.0.1:{port}"
 
-    # Keep main thread alive until backend thread ends or Ctrl+C.
-    # The user closes the app by closing this console window or Ctrl+C.
-    try:
-        while t.is_alive():
-            t.join(timeout=1)
-    except KeyboardInterrupt:
-        print("\n[main] shutting down...")
+    print(f"[main] opening pywebview window: {url}", flush=True)
+    webview.create_window("ConceptForge", url, width=1100, height=780)
+    webview.start()
 
 
 if __name__ == "__main__":

@@ -31,8 +31,8 @@ if %EXITCODE% EQU 0 (
     echo [ERROR] ConceptForge exited with code %EXITCODE%.
     echo.
     echo Common causes:
-    echo   - Microsoft Edge not found (Win10/11 自带，用于以 app 模式打开窗口)
     echo   - Python or dependency issue (re-run setup.bat)
+    echo   - pywebview backend issue (see error message above)
     echo   - See error message above this block
 )
 echo ============================================
