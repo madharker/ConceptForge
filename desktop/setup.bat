@@ -38,7 +38,10 @@ if "!PY_CMD!"=="" (
     echo   1. Check "Add Python to PATH" ^(bottom of installer window^)
     echo   2. Click "Install Now"
     echo.
-    echo After install, CLOSE this window and re-run setup.bat.
+    echo After install:
+    echo   1. CLOSE all command prompt / PowerShell windows
+    echo   2. Open a NEW window and re-run setup.bat
+    echo   If still failing, log off and back on ^(or restart Windows^).
     echo Do NOT use Microsoft Store version - it will not work.
     echo.
     pause
@@ -57,7 +60,10 @@ if errorlevel 1 (
     echo   https://www.python.org/ftp/python/3.13.14/python-3.13.14-amd64.exe
     echo.
     echo During install, check "Add Python to PATH" then "Install Now".
-    echo After install, close this window and re-run setup.bat.
+    echo After install:
+    echo   1. CLOSE all command prompt / PowerShell windows
+    echo   2. Open a NEW window and re-run setup.bat
+    echo   If still failing, log off and back on ^(or restart Windows^).
     echo.
     pause
     exit /b 1
