@@ -18,8 +18,17 @@ from pathlib import Path
 import uvicorn
 import webview
 
-DESKTOP_DIR = Path(__file__).resolve().parent
-BACKEND_DIR = DESKTOP_DIR.parent / "backend"
+# PyInstaller frozen mode: __file__ is unreliable. In onedir mode the exe
+# lives in dist/ConceptForge/ and assets/backend are bundled as
+# dist/ConceptForge/desktop/assets/ and dist/ConceptForge/backend/.
+# In source mode, just use the normal __file__-relative paths.
+if getattr(sys, "frozen", False):
+    _BASE_DIR = Path(sys.executable).resolve().parent
+    DESKTOP_DIR = _BASE_DIR / "desktop"
+    BACKEND_DIR = _BASE_DIR / "backend"
+else:
+    DESKTOP_DIR = Path(__file__).resolve().parent
+    BACKEND_DIR = DESKTOP_DIR.parent / "backend"
 ASSETS_DIR = DESKTOP_DIR / "assets"
 
 def find_free_port() -> int:

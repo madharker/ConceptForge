@@ -1,10 +1,14 @@
 // Backend API helpers. Base URL is determined by the port injected by the
-// desktop shell (window.__CF_PORT__, written to __port__.js by main.py),
-// falling back to http://127.0.0.1:8000 for direct development.
+// desktop shell (window.__CF_PORT__, written to __port__.js by main.py).
+// In Vite dev mode (no __CF_PORT__), BASE is empty so requests use a
+// relative path and are proxied to the FastAPI backend via vite.config.js
+// server.proxy — this avoids cross-origin issues and works when the dev
+// server runs on a remote host (e.g. preview tunnel) that the browser
+// can reach but 127.0.0.1:8000 cannot.
 
 const BASE = window.__CF_PORT__
   ? `http://127.0.0.1:${window.__CF_PORT__}`
-  : 'http://127.0.0.1:8000'
+  : ''
 
 function handleError(res, fallback) {
   if (!res.ok) {
