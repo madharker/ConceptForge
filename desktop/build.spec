@@ -30,19 +30,20 @@ for pkg in ["webview", "fastapi", "uvicorn", "openai", "pydantic"]:
     binaries += b
 
 # 加入前端构建产物（desktop/assets/）
-assets_dir = os.path.join(ROOT, "desktop", "assets")
+assets_dir = os.path.join(ROOT, "assets")
 if os.path.isdir(assets_dir):
     datas.append((assets_dir, "desktop/assets"))
 
 # 加入 backend 源码（skills/harness 等 Python 模块，PyInstaller 会自动追踪，
 # 但为确保 app.routers 等子包完整打包，显式加入）
-backend_dir = os.path.join(ROOT, "backend")
+# ROOT = desktop/，backend 在仓库根，即 desktop/../backend
+backend_dir = os.path.join(ROOT, "..", "backend")
 if os.path.isdir(backend_dir):
     datas.append((backend_dir, "backend"))
 
 a = Analysis(
-    ["desktop/main.py"],
-    pathex=[ROOT, os.path.join(ROOT, "backend"), os.path.join(ROOT, "desktop")],
+    ["main.py"],
+    pathex=[ROOT, os.path.join(ROOT, "..", "backend")],
     binaries=binaries,
     datas=datas,
     hiddenimports=[
