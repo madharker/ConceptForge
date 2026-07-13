@@ -606,6 +606,16 @@ body::before {
   border-radius: 6px;
 }
 
+/* style summary toggle: push button outward (right-aligned, breathing room) */
+.style-toggle {
+  display: flex;
+  justify-content: flex-end;
+  margin: 4px -8px 0 0;
+}
+.style-toggle .btn {
+  min-width: 180px;
+}
+
 .results-actions {
   margin-top: 16px;
   text-align: center;

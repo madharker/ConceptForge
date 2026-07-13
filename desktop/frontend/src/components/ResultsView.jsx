@@ -155,15 +155,17 @@ export default function ResultsView({ submissionId, onRestart }) {
       <section className="module">
         <h3 className="module-title">风格与质量总结</h3>
         {!styleExpanded && (
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              setStyleExpanded(true)
-              if (!styleSummary) loadStyleSummary()
-            }}
-          >
-            {styleSummary ? '展开风格与质量总结' : '查看风格与质量总结'}
-          </button>
+          <div className="style-toggle">
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setStyleExpanded(true)
+                if (!styleSummary) loadStyleSummary()
+              }}
+            >
+              {styleSummary ? '展开风格与质量总结' : '查看风格与质量总结'}
+            </button>
+          </div>
         )}
         {styleExpanded && styleLoading && (
           <p className="module-note">正在生成风格总结…</p>
@@ -184,7 +186,7 @@ export default function ResultsView({ submissionId, onRestart }) {
                 </li>
               ))}
             </ul>
-            <div className="results-actions" style={{ marginTop: 12, paddingTop: 0, borderTop: 'none' }}>
+            <div className="style-toggle" style={{ marginTop: 14 }}>
               <button className="btn btn-ghost" onClick={() => setStyleExpanded(false)}>
                 收起风格总结
               </button>
