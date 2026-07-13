@@ -32,12 +32,13 @@ for p in (ROOT, BACKEND_DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# 收集 FastAPI、Uvicorn、OpenAI 的数据文件
+# 收集 FastAPI、Uvicorn、OpenAI、httpx 的数据文件
 # 注意：不再需要 webview/pythonnet/clr_loader —— 改用 Edge --app 模式打开窗口，
 # 完全绕过 pywebview 的 WinForms/pythonnet 依赖链
+# httpx/httpcore: openai 库的 HTTP 客户端，PyInstaller 不会自动收集
 datas = []
 binaries = []
-for pkg in ["fastapi", "uvicorn", "openai", "pydantic"]:
+for pkg in ["fastapi", "uvicorn", "openai", "pydantic", "httpx", "httpcore"]:
     d, b, _ = collect_all(pkg)
     datas += d
     binaries += b
@@ -64,6 +65,21 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=[
+        "httpx",
+        "httpcore",
+        "httpx._config",
+        "httpx._models",
+        "httpx._client",
+        "httpx._transports",
+        "httpx._transports.default",
+        "httpcore._async",
+        "httpcore._sync",
+        "h11",
+        "anyio",
+        "anyio._backends",
+        "anyio._backends._asyncio",
+        "sniffio",
+        "certifi",
         "uvicorn.logging",
         "uvicorn.protocols",
         "uvicorn.protocols.http",
