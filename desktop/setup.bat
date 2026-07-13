@@ -90,7 +90,8 @@ pause
 
 :found_python
 REM Write version to temp file (avoids for/f parsing issues with python output)
-!PY_CMD! -c "import sys; open('_pyver.txt','w').write('%d.%d' % (sys.version_info.major, sys.version_info.minor))"
+REM Note: %%d in batch => %d passed to Python (cmd.exe eats single %)
+!PY_CMD! -c "import sys; open('_pyver.txt','w').write('%%d.%%d' %% (sys.version_info.major, sys.version_info.minor))"
 if errorlevel 1 (
     echo.
     echo [ERROR] Python was found but cannot execute scripts.
