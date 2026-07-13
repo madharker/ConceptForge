@@ -139,7 +139,7 @@ echo       venv ready
 
 REM ---------- 3. Install deps ----------
 echo [3/4] Installing dependencies (may take a few minutes)...
-echo       - pywebview, distro, fastapi, uvicorn, openai, pydantic, httpx
+echo       - pywebview, fastapi, uvicorn, openai, pydantic
 echo.
 
 ".venv\Scripts\python.exe" -m pip install --upgrade pip --quiet

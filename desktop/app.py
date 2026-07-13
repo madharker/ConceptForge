@@ -3,24 +3,16 @@
 Mounts the existing backend routers (topics, submissions) AND adds /api/settings
 endpoints so the desktop frontend's SettingsView can read/write LLM config
 persistently and inject it into llm_client at runtime.
-
-Also serves the built frontend (desktop/assets/) so the app can be opened
-in a browser/Edge-app window without needing pywebview or pythonnet.
 """
 from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # Import existing routers (add backend to sys.path)
 import sys
 from pathlib import Path
-if getattr(sys, "frozen", False):
-    # PyInstaller frozen mode: resources are under sys._MEIPASS
-    _BACKEND = Path(sys._MEIPASS) / "backend"
-else:
-    _BACKEND = Path(__file__).resolve().parent.parent / "backend"
+_BACKEND = Path(__file__).resolve().parent.parent / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
@@ -124,20 +116,6 @@ def llm_logs():
 
 @app.delete("/api/llm/logs")
 def llm_logs_clear():
-    """清空日志。"""
+    """清空调用日志。"""
     clear_logs()
     return {"ok": True}
-
-
-# --- Static frontend serving ---
-# Mount the built frontend (desktop/assets/) at "/" so the app can be
-# opened directly via http://127.0.0.1:port/ in a browser/Edge-app window.
-# Must be registered AFTER all /api/* routes so API requests take priority.
-# StaticFiles(html=True) serves index.html at "/" automatically.
-if getattr(sys, "frozen", False):
-    _ASSETS = Path(sys._MEIPASS) / "desktop" / "assets"
-else:
-    _ASSETS = Path(__file__).resolve().parent / "assets"
-
-if _ASSETS.is_dir():
-    app.mount("/", StaticFiles(directory=str(_ASSETS), html=True), name="frontend")
