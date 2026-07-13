@@ -84,8 +84,8 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    console=False,  # 无控制台窗口（GUI 应用）
+    upx=False,  # UPX 压缩在 PyInstaller 6.x + Py 3.13 上会破坏 DLL 重定位，导致启动 ACCESS_VIOLATION
+    console=True,  # 临时开 console 以便定位启动期崩溃；确认稳定后改回 False
     icon=os.path.join(ROOT, "icon.ico"),  # 应用图标
 )
 
@@ -94,7 +94,7 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name="ConceptForge",
 )
