@@ -1,7 +1,7 @@
 # 概念锻造器 ConceptForge
 
 <p align="center">
-  <img src="docs/icon.svg" width="128" height="128" alt="ConceptForge icon"/>
+  <img src="https://raw.githubusercontent.com/madharker/ConceptForge/desktop/docs/icon.svg" width="128" height="128" alt="ConceptForge icon"/>
 </p>
 
 <p align="center">
