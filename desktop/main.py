@@ -1,13 +1,18 @@
 """ConceptForge desktop app entry point.
 
-Starts the FastAPI backend on a random localhost port, then opens the app
-in a pywebview native window pointing at the bundled assets/index.html.
+Starts the FastAPI backend (which also serves the built frontend via
+StaticFiles mounted at "/") on a random localhost port, then opens the
+app in a pywebview native window pointing at the backend's HTTP origin.
 
-The frontend learns the backend port via one of two mechanisms:
-  1. A bootstrap file `assets/__port__.js` written at runtime containing
-     `window.__CF_PORT__=<port>;` (preferred — works under file://).
-  2. A `?port=<port>` query string appended to the index URL (fallback
-     when the assets directory is not writable, e.g. frozen EXE).
+Loading the frontend over http:// from the backend (instead of file://)
+is deliberate: under file://, pywebview's <script src="./__port__.js">
+bootstrap is unreliable across backends (WebView2/EdgeChromium sometimes
+silently skips it), which left window.__CF_PORT__ undefined and made
+api.js's `new URL(\`${BASE}/api/...\`)` throw "Invalid URL". Serving
+the frontend from the same HTTP origin as the API removes that whole
+class of file:// quirks: scripts load normally, fetch is same-origin,
+and the port is passed via a ?port= query string that the frontend
+reads through URLSearchParams.
 
 This is the pure-pywebview variant for the double-script (setup.bat +
 run.bat) flow. Running under a normal Python interpreter, pywebview's
@@ -68,21 +73,6 @@ def start_backend(port: int):
         traceback.print_exc()
 
 
-def inject_port(port: int) -> bool:
-    """Write a bootstrap JS file telling the frontend which port to use.
-
-    Returns True on success. Under file:// the frontend loads this script
-    via a <script src="__port__.js"></script> tag; under http:// it is
-    ignored (the frontend reads its own origin instead).
-    """
-    bootstrap = ASSETS_DIR / "__port__.js"
-    try:
-        bootstrap.write_text(f"window.__CF_PORT__={port};", encoding="utf-8")
-        return True
-    except (PermissionError, OSError):
-        return False
-
-
 def main():
     port = find_free_port()
     # Start backend in daemon thread (dies with main thread)
@@ -105,19 +95,15 @@ def main():
 
     print(f"[main] backend ready on port {port}", flush=True)
 
-    # Tell the frontend which port the backend is on.
-    port_written = inject_port(port)
-
-    # Load the bundled frontend. Prefer file:// over the backend's static
-    # mount so the window is independent of the backend serving path.
-    index = ASSETS_DIR / "index.html"
-    if index.exists():
-        url = index.as_uri()
-        if not port_written:
-            url = f"{url}?port={port}"
+    # Load the frontend from the backend's HTTP origin (StaticFiles mount at "/").
+    # Same-origin => no CORS, no file:// script-loading quirks.
+    # ?port= is read by frontend api.js via URLSearchParams so it can build
+    # absolute API URLs (new URL() requires an absolute base).
+    if (ASSETS_DIR / "index.html").exists():
+        url = f"http://127.0.0.1:{port}/?port={port}"
     else:
-        # Fallback: let the backend serve the frontend (if mounted).
-        url = f"http://127.0.0.1:{port}"
+        print(f"[main] WARNING: {ASSETS_DIR / 'index.html'} not found", flush=True)
+        url = f"http://127.0.0.1:{port}/?port={port}"
 
     print(f"[main] opening pywebview window: {url}", flush=True)
     webview.create_window("ConceptForge", url, width=1100, height=780)

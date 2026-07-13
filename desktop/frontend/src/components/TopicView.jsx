@@ -17,8 +17,8 @@ export default function TopicView({ topic, loading, error, onStart, onRetry }) {
           {error || '未收到课题数据。请确认后端服务已启动。'}
         </p>
         <p className="muted" style={{ fontSize: '.85rem', marginBottom: 20 }}>
-          默认接口地址：<code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent2)' }}>http://localhost:8000</code>
-          ，可通过 <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent2)' }}>VITE_API_BASE</code> 配置。
+          后端由桌面端自动启动在随机本地端口，前端通过同源 HTTP 访问。
+          若持续失败，请检查后端控制台输出或重新运行 setup.bat。
         </p>
         <button className="btn btn-primary" onClick={onRetry}>重新尝试</button>
       </section>

@@ -23,8 +23,11 @@ function handleError(res, fallback) {
 // GET /api/topics/new?subject=<optional> -> { id, question, background }
 // signal: 可选 AbortSignal，用于取消请求防止竞态（旧响应覆盖新）
 export async function fetchNewTopic(subject, signal) {
-  const url = new URL(`${BASE}/api/topics/new`)
-  if (subject) url.searchParams.set('subject', subject)
+  // 用 URLSearchParams 拼接，避免 new URL() 在 BASE 为空时抛 Invalid URL
+  const params = new URLSearchParams()
+  if (subject) params.set('subject', subject)
+  const qs = params.toString()
+  const url = `${BASE}/api/topics/new${qs ? '?' + qs : ''}`
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
     signal,
