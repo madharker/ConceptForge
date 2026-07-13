@@ -55,12 +55,6 @@ def start_backend(port: int):
         import traceback
         print("[backend] FAILED to start:", flush=True)
         traceback.print_exc()
-        # Keep the console open so the user can read the error
-        print("\n[backend] Press Enter to exit...", flush=True)
-        try:
-            input()
-        except EOFError:
-            pass
 
 def inject_port(port: int) -> bool:
     """Write a small JS file the frontend imports to know the backend port.
@@ -99,6 +93,7 @@ def main():
         except EOFError:
             pass
         return
+    print(f"[main] backend ready on port {port}", flush=True)
     # Inject port into frontend
     port_written = inject_port(port)
     # Determine which frontend to load
