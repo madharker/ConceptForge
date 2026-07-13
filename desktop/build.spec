@@ -12,7 +12,7 @@
     Windows: 无额外系统依赖（PyWebView 用 Edge WebView2，Win10+ 自带）
     Linux:   需系统装 WebKitGTK (apt install libwebkit2gtk-4.1-dev)
 """
-from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_all
 import os
 import sys
 from pathlib import Path
@@ -26,10 +26,8 @@ REPO = os.path.abspath(os.path.join(ROOT, ".."))
 # backend 源码目录（backend/）
 BACKEND_DIR = os.path.join(REPO, "backend")
 
-# 关键：把 desktop/ 和 backend/ 加入 sys.path，否则 collect_submodules('app')
-# 在 Windows 构建机上返回空列表（找不到 app 包），导致 frozen exe 运行时
-# 报 ModuleNotFoundError: No module named 'app'。
-# pathex 只影响 PyInstaller 分析阶段的模块查找，不影响 collect_submodules。
+# 把 desktop/ 和 backend/ 加入 sys.path，让 PyInstaller 分析阶段能 import 到
+# desktop 和 app 包（pathex 只影响部分模块查找，sys.path 才是 import 用的）。
 for p in (ROOT, BACKEND_DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
@@ -47,19 +45,20 @@ assets_dir = os.path.join(ROOT, "assets")
 if os.path.isdir(assets_dir):
     datas.append((assets_dir, "desktop/assets"))
 
-# 显式收集 desktop 和 app 包的数据文件（.py 之外的资源）
-datas += collect_data_files("desktop")
-datas += collect_data_files("app")
-
-# 枚举两个包的完整子模块列表（必须在 sys.path 修复之后调用）
-_app_subs = collect_submodules("app")
-_desktop_subs = collect_submodules("desktop")
-print(f"[spec] app submodules: {_app_subs}")
-print(f"[spec] desktop submodules: {_desktop_subs}")
+# 把 backend/ 和 desktop/ 源码目录作为数据文件加入，作为 fallback：
+# 即使 PyInstaller 漏掉某个模块的字节码，运行时也能从 .py 源码 import
+# （main.py 在 frozen 模式下会把 _MEIPASS/backend 加入 sys.path）。
+if os.path.isdir(BACKEND_DIR):
+    datas.append((BACKEND_DIR, "backend"))
+# desktop 下的 .py 文件（app.py/config.py/main.py/__init__.py）
+for py in ("__init__.py", "app.py", "config.py", "build_frontend.py"):
+    p = os.path.join(ROOT, py)
+    if os.path.isfile(p):
+        datas.append((p, "desktop"))
 
 a = Analysis(
     ["main.py"],
-    pathex=[ROOT, os.path.join(ROOT, "..", "backend")],
+    pathex=[ROOT, BACKEND_DIR],
     binaries=binaries,
     datas=datas,
     hiddenimports=[
@@ -71,10 +70,28 @@ a = Analysis(
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan",
         "uvicorn.lifespan.on",
-        # desktop 包完整子树
-        *_desktop_subs,
-        # app 包完整子树（harness/store/schemas 等被动态导入）
-        *_app_subs,
+        # desktop 包（main.py 用 desktop.config、desktop.app）
+        "desktop",
+        "desktop.app",
+        "desktop.config",
+        # app 包完整子树（显式列出，不依赖 collect_submodules —— 该函数在
+        # Windows 构建机上因 sys.path 问题曾返回空列表）
+        "app",
+        "app.harness",
+        "app.llm_client",
+        "app.main",
+        "app.research_pedagogy",
+        "app.schemas",
+        "app.store",
+        "app.routers",
+        "app.routers.submissions",
+        "app.routers.topics",
+        "app.skills",
+        "app.skills.align_skill",
+        "app.skills.collect_skill",
+        "app.skills.evaluate_skill",
+        "app.skills.style_summary_skill",
+        "app.skills.topic_skill",
     ],
     hookspath=[],
     hooksconfig={},
