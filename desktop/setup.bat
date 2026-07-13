@@ -12,23 +12,46 @@ echo Working dir: %CD%
 echo.
 
 REM ---------- 1. Check Python ----------
+REM Prefer `py -3` (official launcher, always works if Python installed).
+REM Fall back to `python` (may be Windows Store stub - will fail below).
 echo [1/4] Checking Python...
-where python >nul 2>&1
-if errorlevel 1 (
+
+set PY_CMD=
+py -3 --version >nul 2>&1
+if not errorlevel 1 (
+    set PY_CMD=py -3
+) else (
+    python --version >nul 2>&1
+    if not errorlevel 1 (
+        set PY_CMD=python
+    )
+)
+
+if "!PY_CMD!"=="" (
     echo.
-    echo [ERROR] Python not found.
+    echo [ERROR] Python not found or not usable.
     echo Please install Python 3.10+ from https://www.python.org/downloads/
-    echo Be sure to check "Add Python to PATH" during install.
+    echo Install tips:
+    echo   - Check "Add Python to PATH" during install
+    echo   - Or use the official launcher `py` (installed with Python)
+    echo   - If Windows Store opens when you type `python`, disable:
+    echo     Settings ^> Apps ^> Advanced app settings ^> App execution aliases ^> off Python
     echo.
     pause
     exit /b 1
 )
 
-REM Parse version via file to avoid cmd parsing issues with python output
-python -c "import sys; open('_pyver.txt','w').write('%d.%d' % (sys.version_info.major, sys.version_info.minor))" >nul 2>&1
+REM Write version to temp file (avoids for/f parsing issues with python output)
+!PY_CMD! -c "import sys; open('_pyver.txt','w').write('%d.%d' % (sys.version_info.major, sys.version_info.minor))"
 if errorlevel 1 (
     echo.
-    echo [ERROR] Python exists but failed to run. Possible PATH or install issue.
+    echo [ERROR] Found Python but it failed to run a script.
+    echo This usually means `python` is the Windows Store stub.
+    echo Fixes:
+    echo   1. Disable Windows Store python alias (Settings ^> Apps ^>
+    echo      Advanced app settings ^> App execution aliases ^> off Python)
+    echo   2. Reinstall Python from python.org with "Add to PATH" checked
+    echo   3. Or use the `py` launcher (comes with Python installer)
     echo.
     pause
     exit /b 1
@@ -36,7 +59,6 @@ if errorlevel 1 (
 set /p PY_VER=<_pyver.txt
 del _pyver.txt >nul 2>&1
 
-REM Extract major.minor as integers
 for /f "tokens=1,2 delims=." %%a in ("%PY_VER%") do (
     set PY_MAJOR=%%a
     set PY_MINOR=%%b
@@ -53,14 +75,14 @@ if !PY_OK! EQU 0 (
     pause
     exit /b 1
 )
-echo       Python !PY_VER! OK
+echo       Using: !PY_CMD! ^(!PY_VER!^)
 
 REM ---------- 2. Create venv ----------
 echo [2/4] Creating virtual environment .venv...
 if exist ".venv\Scripts\python.exe" (
     echo       .venv already exists, reusing.
 ) else (
-    python -m venv .venv
+    !PY_CMD! -m venv .venv
     if errorlevel 1 (
         echo.
         echo [ERROR] venv creation failed.
@@ -89,13 +111,14 @@ if not exist "requirements.txt" (
     exit /b 1
 )
 
-".venv\Scripts\pip.exe" install -r requirements.txt
+".venv\Scripts\python.exe" -m pip install -r requirements.txt
 if errorlevel 1 (
     echo.
     echo [ERROR] Dependency install failed.
     echo Common fixes:
     echo   - Check internet connection
-    echo   - Try a different PyPI mirror: pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+    echo   - Try a PyPI mirror (China):
+    echo     ".venv\Scripts\python.exe" -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
     echo.
     pause
     exit /b 1
