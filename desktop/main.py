@@ -18,12 +18,11 @@ from pathlib import Path
 import uvicorn
 import webview
 
-# PyInstaller frozen mode: __file__ is unreliable. In onedir mode the exe
-# lives in dist/ConceptForge/ and assets/backend are bundled as
-# dist/ConceptForge/desktop/assets/ and dist/ConceptForge/backend/.
+# PyInstaller frozen mode: bundled resources live under sys._MEIPASS
+# (in PyInstaller 6.x onedir mode, this is the _internal/ folder next to the exe).
 # In source mode, just use the normal __file__-relative paths.
 if getattr(sys, "frozen", False):
-    _BASE_DIR = Path(sys.executable).resolve().parent
+    _BASE_DIR = Path(sys._MEIPASS)
     DESKTOP_DIR = _BASE_DIR / "desktop"
     BACKEND_DIR = _BASE_DIR / "backend"
 else:
@@ -51,10 +50,19 @@ def start_backend(port: int):
         set_runtime_config(cfg)
     uvicorn.run("desktop.app:app", host="127.0.0.1", port=port, log_level="warning")
 
-def inject_port(port: int):
-    """Write a small JS file the frontend imports to know the backend port."""
+def inject_port(port: int) -> bool:
+    """Write a small JS file the frontend imports to know the backend port.
+
+    Returns True if written successfully, False if the assets dir is not
+    writable (e.g. installed under Program Files). In that case the caller
+    falls back to passing the port via URL query string.
+    """
     bootstrap = ASSETS_DIR / "__port__.js"
-    bootstrap.write_text(f"window.__CF_PORT__={port};", encoding="utf-8")
+    try:
+        bootstrap.write_text(f"window.__CF_PORT__={port};", encoding="utf-8")
+        return True
+    except (PermissionError, OSError):
+        return False
 
 def main():
     port = find_free_port()
@@ -70,11 +78,14 @@ def main():
         except Exception:
             time.sleep(0.2)
     # Inject port into frontend
-    inject_port(port)
+    port_written = inject_port(port)
     # Determine which frontend to load
     index = ASSETS_DIR / "index.html"
     if index.exists():
         url = index.as_uri()
+        # Fallback: if __port__.js couldn't be written, pass port via query
+        if not port_written:
+            url = f"{url}?port={port}"
     else:
         # Dev fallback: assume vite dev server at 5174
         url = "http://localhost:5174"

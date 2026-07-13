@@ -6,9 +6,13 @@
 // server runs on a remote host (e.g. preview tunnel) that the browser
 // can reach but 127.0.0.1:8000 cannot.
 
-const BASE = window.__CF_PORT__
-  ? `http://127.0.0.1:${window.__CF_PORT__}`
-  : ''
+// Resolve backend port: prefer __port__.js injection; fall back to ?port= query
+// (used when the bundled assets dir is read-only, e.g. installed under Program Files).
+const __cfPort =
+  window.__CF_PORT__ ||
+  new URLSearchParams(window.location.search).get('port')
+
+const BASE = __cfPort ? `http://127.0.0.1:${__cfPort}` : ''
 
 function handleError(res, fallback) {
   if (!res.ok) {
