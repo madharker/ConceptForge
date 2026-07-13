@@ -140,9 +140,7 @@ git push origin v0.x.x
 - 每个模块提交前均经人工阅读与校验
 - 后端 API 契约、前端交互流程、PyInstaller 打包路径均经实际运行验证
 - 安全相关（配置持久化、API key 处理、CORS）经人工审查
-
-AI 负责把意图翻译成代码，人负责保证代码是对的。
-
+（其实这个readme也是ai写的*小声）
 ## License
 
 MIT
