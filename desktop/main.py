@@ -105,6 +105,19 @@ def open_app_window(url: str, width: int = 1100, height: int = 780) -> bool:
     return False
 
 
+def try_pywebview(url: str, width: int = 1100, height: int = 780) -> bool:
+    """Open url in a pywebview window.
+
+    Returns True if pywebview was used. In PyInstaller frozen mode,
+    pythonnet (PyWebView's WinForms backend) cannot initialize, so this
+    function raises and the caller falls back to Edge --app mode.
+    """
+    import webview
+    webview.create_window("ConceptForge", url, width=width, height=height)
+    webview.start()
+    return True
+
+
 def main():
     port = find_free_port()
     # Start backend in daemon thread (dies with main thread)
@@ -128,8 +141,20 @@ def main():
 
     print(f"[main] backend ready on port {port}", flush=True)
 
-    # Open app window — backend serves the frontend at /
     url = f"http://127.0.0.1:{port}"
+
+    # Try pywebview first (native window, best UX).
+    # In frozen (EXE) mode this fails due to pythonnet incompatibility,
+    # so we fall back to Edge --app mode.
+    try:
+        print("[main] trying pywebview...", flush=True)
+        try_pywebview(url)
+        print("[main] pywebview window closed", flush=True)
+        return
+    except Exception as e:
+        print(f"[main] pywebview unavailable ({e}), falling back to Edge --app", flush=True)
+
+    # Fallback: Edge --app mode (chromeless window, no pythonnet needed)
     used_edge = open_app_window(url)
     if used_edge:
         print(f"[main] opened in Edge app mode: {url}", flush=True)

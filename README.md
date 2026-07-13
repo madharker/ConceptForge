@@ -38,7 +38,7 @@
 - **源码运行**（Linux/macOS/Windows）：见 [desktop/README.md](desktop/README.md)
 
 桌面端特点：
-- FastAPI 本地起后端 + Edge --app 模式开窗口（Win10/11 自带 Edge，无需额外运行时）
+- 双脚本方案用 PyWebView 原生窗口；EXE 方案因 PyInstaller 打包限制自动降级为 Edge --app 模式
 - LLM 调用直连用户自接入的 API，数据不经第三方
 - 无 API key 时自动走 **mock 模式**，开箱即可体验完整流程
 - LLM 配置持久化在用户目录，重启不丢
@@ -139,8 +139,8 @@ git push origin v0.x.x
 
 - **后端**：Python 3.10+ / FastAPI / uvicorn / OpenAI SDK（兼容接口）
 - **前端**：Vite + React（JavaScript）/ 纯 CSS 深色衬线主题
-- **桌面端**：FastAPI 本地后端 + Edge --app 模式开窗口（Windows）；其他平台用默认浏览器
-- **打包**：PyInstaller（目录模式）+ GitHub Actions（Windows 自动构建）；另有双脚本方案作为 fallback
+- **桌面端**：PyWebView（原生窗口，双脚本方案）+ Edge --app 降级（EXE 方案）+ FastAPI 本地后端
+- **打包**：PyInstaller（目录模式）+ GitHub Actions（Windows 自动构建）；双脚本方案作为 fallback
 
 ## Vibe Coding 声明
 
