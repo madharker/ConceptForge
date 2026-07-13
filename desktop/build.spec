@@ -14,6 +14,7 @@
 """
 from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
 import os
+import sys
 from pathlib import Path
 
 block_cipher = None
@@ -22,6 +23,16 @@ block_cipher = None
 ROOT = os.path.dirname(os.path.abspath(SPEC))
 # 仓库根目录（desktop/..）
 REPO = os.path.abspath(os.path.join(ROOT, ".."))
+# backend 源码目录（backend/）
+BACKEND_DIR = os.path.join(REPO, "backend")
+
+# 关键：把 desktop/ 和 backend/ 加入 sys.path，否则 collect_submodules('app')
+# 在 Windows 构建机上返回空列表（找不到 app 包），导致 frozen exe 运行时
+# 报 ModuleNotFoundError: No module named 'app'。
+# pathex 只影响 PyInstaller 分析阶段的模块查找，不影响 collect_submodules。
+for p in (ROOT, BACKEND_DIR):
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 # 收集 PyWebView、FastAPI、Uvicorn、OpenAI 的数据文件
 datas = []
@@ -36,10 +47,15 @@ assets_dir = os.path.join(ROOT, "assets")
 if os.path.isdir(assets_dir):
     datas.append((assets_dir, "desktop/assets"))
 
-# 显式收集 desktop 和 backend.app 包的所有子模块，确保 frozen 模式下完整可用
-# （desktop/ 之前没有 __init__.py 是命名空间包，PyInstaller 不会自动收集）
+# 显式收集 desktop 和 app 包的数据文件（.py 之外的资源）
 datas += collect_data_files("desktop")
 datas += collect_data_files("app")
+
+# 枚举两个包的完整子模块列表（必须在 sys.path 修复之后调用）
+_app_subs = collect_submodules("app")
+_desktop_subs = collect_submodules("desktop")
+print(f"[spec] app submodules: {_app_subs}")
+print(f"[spec] desktop submodules: {_desktop_subs}")
 
 a = Analysis(
     ["main.py"],
@@ -55,12 +71,10 @@ a = Analysis(
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan",
         "uvicorn.lifespan.on",
-        # desktop 包（main.py 用 desktop.config、desktop.app）
-        "desktop",
-        "desktop.app",
-        "desktop.config",
+        # desktop 包完整子树
+        *_desktop_subs,
         # app 包完整子树（harness/store/schemas 等被动态导入）
-        *collect_submodules("app"),
+        *_app_subs,
     ],
     hookspath=[],
     hooksconfig={},
