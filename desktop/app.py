@@ -12,7 +12,11 @@ from pydantic import BaseModel
 # Import existing routers (add backend to sys.path)
 import sys
 from pathlib import Path
-_BACKEND = Path(__file__).resolve().parent.parent / "backend"
+if getattr(sys, "frozen", False):
+    # PyInstaller frozen mode: resources are under sys._MEIPASS
+    _BACKEND = Path(sys._MEIPASS) / "backend"
+else:
+    _BACKEND = Path(__file__).resolve().parent.parent / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 

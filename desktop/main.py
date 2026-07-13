@@ -36,19 +36,31 @@ def find_free_port() -> int:
         return s.getsockname()[1]
 
 def start_backend(port: int):
-    # Ensure backend importable
-    if str(BACKEND_DIR) not in sys.path:
-        sys.path.insert(0, str(BACKEND_DIR))
-    # Ensure desktop importable
-    if str(DESKTOP_DIR.parent) not in sys.path:
-        sys.path.insert(0, str(DESKTOP_DIR.parent))
-    # Load persisted config into llm_client
-    from desktop.config import load_config
-    from app.llm_client import set_runtime_config
-    cfg = load_config()
-    if cfg.get("api_key"):
-        set_runtime_config(cfg)
-    uvicorn.run("desktop.app:app", host="127.0.0.1", port=port, log_level="warning")
+    try:
+        # Ensure backend importable
+        if str(BACKEND_DIR) not in sys.path:
+            sys.path.insert(0, str(BACKEND_DIR))
+        # Ensure desktop importable
+        if str(DESKTOP_DIR.parent) not in sys.path:
+            sys.path.insert(0, str(DESKTOP_DIR.parent))
+        # Load persisted config into llm_client
+        from desktop.config import load_config
+        from app.llm_client import set_runtime_config
+        cfg = load_config()
+        if cfg.get("api_key"):
+            set_runtime_config(cfg)
+        print(f"[backend] starting on http://127.0.0.1:{port}", flush=True)
+        uvicorn.run("desktop.app:app", host="127.0.0.1", port=port, log_level="warning")
+    except Exception:
+        import traceback
+        print("[backend] FAILED to start:", flush=True)
+        traceback.print_exc()
+        # Keep the console open so the user can read the error
+        print("\n[backend] Press Enter to exit...", flush=True)
+        try:
+            input()
+        except EOFError:
+            pass
 
 def inject_port(port: int) -> bool:
     """Write a small JS file the frontend imports to know the backend port.
@@ -71,12 +83,22 @@ def main():
     t.start()
     # Wait for backend to be ready
     import urllib.request
-    for _ in range(50):
+    ready = False
+    for i in range(50):
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=1)
+            ready = True
             break
         except Exception:
             time.sleep(0.2)
+    if not ready:
+        print(f"[main] backend did not become ready on port {port} after 10s", flush=True)
+        print("[main] check the [backend] traceback above; press Enter to exit", flush=True)
+        try:
+            input()
+        except EOFError:
+            pass
+        return
     # Inject port into frontend
     port_written = inject_port(port)
     # Determine which frontend to load
