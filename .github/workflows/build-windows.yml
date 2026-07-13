@@ -1,0 +1,89 @@
+name: Build Windows EXE
+
+# Trigger:
+#   1. Push a tag like v1.0.0 -> build + create Release with zip attached
+#   2. Manual dispatch from Actions tab -> build + upload as workflow artifact
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Python dependencies
+        shell: pwsh
+        working-directory: desktop
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build frontend
+        shell: pwsh
+        working-directory: desktop/frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Verify frontend assets
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "desktop/assets/index.html")) {
+            Write-Error "desktop/assets/index.html not found after build"
+            exit 1
+          }
+          Write-Host "Frontend assets OK"
+
+      - name: Build EXE with PyInstaller
+        shell: pwsh
+        run: pyinstaller desktop/build.spec --noconfirm --clean
+
+      - name: Verify EXE
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/ConceptForge/ConceptForge.exe")) {
+            Write-Error "dist/ConceptForge/ConceptForge.exe not found"
+            exit 1
+          }
+          Write-Host "EXE built OK"
+
+      - name: Zip the dist folder
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_REF -match 'refs/tags/(.*)') { $matches[1] } else { "dev-$env:GITHUB_SHA" }
+          $zipName = "ConceptForge-windows-x64-$tag.zip"
+          Compress-Archive -Path "dist/ConceptForge/*" -DestinationPath $zipName -Force
+          Write-Host "Created $zipName"
+          "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ConceptForge-windows-x64
+          path: ${{ env.ZIP_NAME }}
+          retention-days: 30
+
+      - name: Create Release and Upload Zip
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
