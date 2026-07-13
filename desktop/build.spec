@@ -38,7 +38,7 @@ for p in (ROOT, BACKEND_DIR):
 # httpx/httpcore: openai 库的 HTTP 客户端，PyInstaller 不会自动收集
 datas = []
 binaries = []
-for pkg in ["fastapi", "uvicorn", "openai", "pydantic", "httpx", "httpcore"]:
+for pkg in ["fastapi", "uvicorn", "openai", "pydantic", "httpx", "httpcore", "distro"]:
     d, b, _ = collect_all(pkg)
     datas += d
     binaries += b
@@ -80,6 +80,7 @@ a = Analysis(
         "anyio._backends._asyncio",
         "sniffio",
         "certifi",
+        "distro",
         "uvicorn.logging",
         "uvicorn.protocols",
         "uvicorn.protocols.http",

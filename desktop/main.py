@@ -143,18 +143,23 @@ def main():
 
     url = f"http://127.0.0.1:{port}"
 
-    # Try pywebview first (native window, best UX).
-    # In frozen (EXE) mode this fails due to pythonnet incompatibility,
-    # so we fall back to Edge --app mode.
-    try:
-        print("[main] trying pywebview...", flush=True)
-        try_pywebview(url)
-        print("[main] pywebview window closed", flush=True)
-        return
-    except Exception as e:
-        print(f"[main] pywebview unavailable ({e}), falling back to Edge --app", flush=True)
+    # In frozen (EXE) mode pywebview always fails: its WinForms backend
+    # depends on pythonnet, whose Python.Runtime.dll cannot initialize
+    # under PyInstaller 6.x. Attempting `import webview` in frozen mode
+    # also triggers `import distro` (a pywebview transitive dep) which
+    # PyInstaller doesn't collect — printing a confusing module error
+    # before we even reach the pythonnet crash. So in frozen mode we
+    # skip pywebview entirely and go straight to Edge --app mode.
+    if not getattr(sys, "frozen", False):
+        try:
+            print("[main] trying pywebview...", flush=True)
+            try_pywebview(url)
+            print("[main] pywebview window closed", flush=True)
+            return
+        except Exception as e:
+            print(f"[main] pywebview unavailable ({e}), falling back to Edge --app", flush=True)
 
-    # Fallback: Edge --app mode (chromeless window, no pythonnet needed)
+    # Edge --app mode (chromeless window, no pythonnet needed)
     used_edge = open_app_window(url)
     if used_edge:
         print(f"[main] opened in Edge app mode: {url}", flush=True)
