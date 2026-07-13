@@ -108,7 +108,16 @@ def main():
         url = "http://localhost:5174"
         print(f"[dev] assets/index.html not found, loading {url}")
     webview.create_window("ConceptForge", url, width=1100, height=780)
-    webview.start()
+    # On Windows, force the EdgeChromium (WebView2) backend explicitly.
+    # The default WinForms backend requires pythonnet (CLR bridge), whose
+    # Python.Runtime.dll fails to initialize under PyInstaller 6.x
+    # ("Failed to resolve Python.Runtime.Loader.Initialize"). EdgeChromium
+    # uses the system WebView2 runtime (preinstalled on Win10/11) and
+    # bypasses pythonnet entirely.
+    if sys.platform == "win32":
+        webview.start(gui="edgechromium")
+    else:
+        webview.start()
     # Window closed — process exits, daemon thread dies
 
 if __name__ == "__main__":
