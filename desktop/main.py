@@ -1,26 +1,31 @@
 """ConceptForge desktop app entry point.
 
-Starts the FastAPI backend on a random localhost port in a background thread,
-writes the port into the frontend's bootstrap file, then opens a PyWebView
-window loading the built frontend (desktop/assets/index.html).
+Starts the FastAPI backend (which also serves the built frontend) on a
+random localhost port, then opens the app in Edge's --app mode — a
+chromeless window that looks like a native app.
 
-For development, if assets/index.html doesn't exist, falls back to loading
-desktop/frontend/index.html via a dev server URL passed as --dev arg.
+This replaces pywebview, whose default Windows backend (WinForms) depends
+on pythonnet (CLR bridge). pythonnet's Python.Runtime.dll fails to
+initialize under PyInstaller 6.x, causing a crash at webview.start().
+Using Edge --app mode bypasses pythonnet entirely and relies on the
+system WebView2/Edge runtime (preinstalled on Win10/11).
+
+For development, the backend serves desktop/assets/index.html if it
+exists; otherwise point a browser at the dev server.
 """
 from __future__ import annotations
 import os
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
 from pathlib import Path
 
 import uvicorn
-import webview
 
 # PyInstaller frozen mode: bundled resources live under sys._MEIPASS
-# (in PyInstaller 6.x onedir mode, this is the _internal/ folder next to the exe).
-# In source mode, just use the normal __file__-relative paths.
 if getattr(sys, "frozen", False):
     _BASE_DIR = Path(sys._MEIPASS)
     DESKTOP_DIR = _BASE_DIR / "desktop"
@@ -28,97 +33,117 @@ if getattr(sys, "frozen", False):
 else:
     DESKTOP_DIR = Path(__file__).resolve().parent
     BACKEND_DIR = DESKTOP_DIR.parent / "backend"
-ASSETS_DIR = DESKTOP_DIR / "assets"
+
 
 def find_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
 
+
 def start_backend(port: int):
+    """Run the FastAPI backend in a daemon thread."""
     try:
-        # Ensure backend importable
+        print(f"[backend] starting on http://127.0.0.1:{port}", flush=True)
         if str(BACKEND_DIR) not in sys.path:
             sys.path.insert(0, str(BACKEND_DIR))
-        # Ensure desktop importable
         if str(DESKTOP_DIR.parent) not in sys.path:
             sys.path.insert(0, str(DESKTOP_DIR.parent))
-        # Load persisted config into llm_client
         from desktop.config import load_config
         from app.llm_client import set_runtime_config
         cfg = load_config()
         if cfg.get("api_key"):
             set_runtime_config(cfg)
-        print(f"[backend] starting on http://127.0.0.1:{port}", flush=True)
-        uvicorn.run("desktop.app:app", host="127.0.0.1", port=port, log_level="warning")
+        uvicorn.run(
+            "desktop.app:app",
+            host="127.0.0.1",
+            port=port,
+            log_level="warning",
+        )
     except Exception:
         import traceback
         print("[backend] FAILED to start:", flush=True)
         traceback.print_exc()
 
-def inject_port(port: int) -> bool:
-    """Write a small JS file the frontend imports to know the backend port.
 
-    Returns True if written successfully, False if the assets dir is not
-    writable (e.g. installed under Program Files). In that case the caller
-    falls back to passing the port via URL query string.
+def open_app_window(url: str, width: int = 1100, height: int = 780) -> bool:
+    """Open url in Edge --app mode (window without browser chrome).
+
+    Falls back to the default browser if Edge is not found.
+    Returns True if Edge was used.
     """
-    bootstrap = ASSETS_DIR / "__port__.js"
-    try:
-        bootstrap.write_text(f"window.__CF_PORT__={port};", encoding="utf-8")
-        return True
-    except (PermissionError, OSError):
+    if sys.platform != "win32":
+        import webbrowser
+        webbrowser.open(url)
         return False
+
+    # Common Edge installation paths on Windows
+    edge_candidates = [
+        os.environ.get("EDGE_PATH", ""),
+        shutil.which("msedge"),
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    ]
+    for path in edge_candidates:
+        if path and os.path.isfile(path):
+            try:
+                subprocess.Popen([
+                    path,
+                    f"--app={url}",
+                    f"--window-size={width},{height}",
+                    "--disable-extensions",
+                    "--no-default-browser-check",
+                    "--no-first-run",
+                ])
+                return True
+            except OSError:
+                continue
+
+    # Fallback: default browser
+    import webbrowser
+    webbrowser.open(url)
+    return False
+
 
 def main():
     port = find_free_port()
     # Start backend in daemon thread (dies with main thread)
     t = threading.Thread(target=start_backend, args=(port,), daemon=True)
     t.start()
+
     # Wait for backend to be ready
     import urllib.request
-    ready = False
-    for i in range(50):
+    backend_ready = False
+    for _ in range(50):
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=1)
-            ready = True
+            backend_ready = True
             break
         except Exception:
             time.sleep(0.2)
-    if not ready:
-        print(f"[main] backend did not become ready on port {port} after 10s", flush=True)
-        print("[main] check the [backend] traceback above; press Enter to exit", flush=True)
-        try:
-            input()
-        except EOFError:
-            pass
+
+    if not backend_ready:
+        print(f"[main] backend did not become ready on port {port}", flush=True)
         return
+
     print(f"[main] backend ready on port {port}", flush=True)
-    # Inject port into frontend
-    port_written = inject_port(port)
-    # Determine which frontend to load
-    index = ASSETS_DIR / "index.html"
-    if index.exists():
-        url = index.as_uri()
-        # Fallback: if __port__.js couldn't be written, pass port via query
-        if not port_written:
-            url = f"{url}?port={port}"
+
+    # Open app window — backend serves the frontend at /
+    url = f"http://127.0.0.1:{port}"
+    used_edge = open_app_window(url)
+    if used_edge:
+        print(f"[main] opened in Edge app mode: {url}", flush=True)
     else:
-        # Dev fallback: assume vite dev server at 5174
-        url = "http://localhost:5174"
-        print(f"[dev] assets/index.html not found, loading {url}")
-    webview.create_window("ConceptForge", url, width=1100, height=780)
-    # On Windows, force the EdgeChromium (WebView2) backend explicitly.
-    # The default WinForms backend requires pythonnet (CLR bridge), whose
-    # Python.Runtime.dll fails to initialize under PyInstaller 6.x
-    # ("Failed to resolve Python.Runtime.Loader.Initialize"). EdgeChromium
-    # uses the system WebView2 runtime (preinstalled on Win10/11) and
-    # bypasses pythonnet entirely.
-    if sys.platform == "win32":
-        webview.start(gui="edgechromium")
-    else:
-        webview.start()
-    # Window closed — process exits, daemon thread dies
+        print(f"[main] opened in default browser: {url}", flush=True)
+
+    # Keep main thread alive until backend thread ends or Ctrl+C.
+    # The user closes the app by closing this console window or Ctrl+C.
+    try:
+        while t.is_alive():
+            t.join(timeout=1)
+    except KeyboardInterrupt:
+        print("\n[main] shutting down...")
+
 
 if __name__ == "__main__":
     try:

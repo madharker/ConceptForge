@@ -9,8 +9,8 @@
     dist/ConceptForge.exe       (Windows 单文件模式可选)
 
 平台依赖:
-    Windows: 无额外系统依赖（PyWebView 用 Edge WebView2，Win10+ 自带）
-    Linux:   需系统装 WebKitGTK (apt install libwebkit2gtk-4.1-dev)
+    Windows: 需系统装 Microsoft Edge（Win10/11 自带），用 --app 模式打开窗口
+    Linux:   用默认浏览器打开
 """
 from PyInstaller.utils.hooks import collect_all
 import os
@@ -32,14 +32,12 @@ for p in (ROOT, BACKEND_DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# 收集 PyWebView、FastAPI、Uvicorn、OpenAI、pythonnet 的数据文件
-# pythonnet/clr_loader 必须显式收集，否则 Python.Runtime.dll 不会被打包，
-# 导致 frozen exe 在 webview.start() 时报：
-#   RuntimeError: Failed to resolve Python.Runtime.Loader.Initialize
+# 收集 FastAPI、Uvicorn、OpenAI 的数据文件
+# 注意：不再需要 webview/pythonnet/clr_loader —— 改用 Edge --app 模式打开窗口，
+# 完全绕过 pywebview 的 WinForms/pythonnet 依赖链
 datas = []
 binaries = []
-for pkg in ["webview", "fastapi", "uvicorn", "openai", "pydantic",
-            "pythonnet", "clr_loader", "pythonnet_dotnet"]:
+for pkg in ["fastapi", "uvicorn", "openai", "pydantic"]:
     d, b, _ = collect_all(pkg)
     datas += d
     binaries += b
