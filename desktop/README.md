@@ -23,11 +23,26 @@ desktop/frontend/ (Vite + React)
 
 ## 快速开始（普通使用，无需 Node.js）
 
-仓库已包含构建好的前端产物 `desktop/assets/`，普通用户只需装 Python 即可运行。
+仓库已包含构建好的前端产物 `desktop/assets/`，普通用户只需装 Python 和 Git 即可运行。
 
 ### 前置条件
-- Python 3.10+
+- **Git**（用于克隆仓库和更新版本）
+  - Linux: `sudo apt install git`（Debian/Ubuntu）或 `sudo dnf install git`（Fedora）
+  - macOS: `brew install git` 或安装 Xcode Command Line Tools（`xcode-select --install`）
+  - Windows: 从 https://git-scm.com/download/win 下载安装，安装时一路默认即可
+- **Python 3.10+**（https://www.python.org/downloads/）
+  - Windows 安装时务必勾选 "Add Python to PATH"
 - 桌面环境（PyWebView 需要图形界面）
+
+### 获取代码
+
+```bash
+git clone https://github.com/madharker/ConceptForge.git
+cd ConceptForge
+git checkout desktop
+```
+
+> 也可在仓库页面点 "Code → Download ZIP" 解压，无需 Git，但后续更新需重新下载。
 
 ### 一键安装
 
@@ -88,27 +103,31 @@ bash desktop/run.sh                 # Windows: desktop\run.bat
 
 ## 更新到新版本
 
-仓库推送新版本后，无需删除现有环境，运行更新脚本即可：
+推荐直接删除整个目录重新拉取安装，最简单无副作用：
 
 **Linux / macOS:**
 ```bash
-bash desktop/update.sh
+cd ..                                    # 退出 ConceptForge 目录
+rm -rf ConceptForge                      # 删除整个项目
+git clone https://github.com/madharker/ConceptForge.git
+cd ConceptForge
+git checkout desktop
+bash desktop/setup.sh
+bash desktop/run.sh
 ```
 
-**Windows:**
-双击 `desktop/update.bat`，或命令行执行：
+**Windows（PowerShell 或 CMD）:**
 ```cmd
-desktop\update.bat
+cd ..
+rmdir /s /q ConceptForge
+git clone https://github.com/madharker/ConceptForge.git
+cd ConceptForge
+git checkout desktop
+desktop\setup.bat
+desktop\run.bat
 ```
 
-脚本会自动：
-1. `git pull` 拉取最新代码
-2. 检测 `requirements.txt` 是否变化，变化时才更新依赖（未变化则跳过，省时间）
-3. 现有 `.venv` 和前端产物 `assets/` 均保留，无需重新安装
-
-更新完成后运行 `bash desktop/run.sh`（Windows: `desktop\run.bat`）即可使用新版本。
-
-> 若 `git pull` 出现冲突（通常因本地修改了仓库文件），脚本会提示，手动解决冲突后重新运行即可。
+> 设置页保存的 LLM 配置存储在系统目录（Windows: `%APPDATA%\ConceptForge`，Linux: `~/.config/ConceptForge`，macOS: `~/Library/Application Support/ConceptForge`），删除项目目录不会丢失，重装后自动读取。
 
 ## 开发模式（修改前端源码时才需要）
 
