@@ -12,14 +12,16 @@
     Windows: 无额外系统依赖（PyWebView 用 Edge WebView2，Win10+ 自带）
     Linux:   需系统装 WebKitGTK (apt install libwebkit2gtk-4.1-dev)
 """
-from PyInstaller.utils.hooks import collect_all, collect_data_files
+from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
 import os
 from pathlib import Path
 
 block_cipher = None
 
-# 项目根目录
+# 项目根目录（即 desktop/）
 ROOT = os.path.dirname(os.path.abspath(SPEC))
+# 仓库根目录（desktop/..）
+REPO = os.path.abspath(os.path.join(ROOT, ".."))
 
 # 收集 PyWebView、FastAPI、Uvicorn、OpenAI 的数据文件
 datas = []
@@ -34,12 +36,10 @@ assets_dir = os.path.join(ROOT, "assets")
 if os.path.isdir(assets_dir):
     datas.append((assets_dir, "desktop/assets"))
 
-# 加入 backend 源码（skills/harness 等 Python 模块，PyInstaller 会自动追踪，
-# 但为确保 app.routers 等子包完整打包，显式加入）
-# ROOT = desktop/，backend 在仓库根，即 desktop/../backend
-backend_dir = os.path.join(ROOT, "..", "backend")
-if os.path.isdir(backend_dir):
-    datas.append((backend_dir, "backend"))
+# 显式收集 desktop 和 backend.app 包的所有子模块，确保 frozen 模式下完整可用
+# （desktop/ 之前没有 __init__.py 是命名空间包，PyInstaller 不会自动收集）
+datas += collect_data_files("desktop")
+datas += collect_data_files("app")
 
 a = Analysis(
     ["main.py"],
@@ -55,15 +55,12 @@ a = Analysis(
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan",
         "uvicorn.lifespan.on",
-        "app.routers.topics",
-        "app.routers.submissions",
-        "app.skills.topic_skill",
-        "app.skills.collect_skill",
-        "app.skills.evaluate_skill",
-        "app.skills.align_skill",
-        "app.skills.style_summary_skill",
+        # desktop 包（main.py 用 desktop.config、desktop.app）
+        "desktop",
         "desktop.app",
         "desktop.config",
+        # app 包完整子树（harness/store/schemas 等被动态导入）
+        *collect_submodules("app"),
     ],
     hookspath=[],
     hooksconfig={},
