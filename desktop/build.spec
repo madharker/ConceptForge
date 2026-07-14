@@ -115,7 +115,9 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # frozen 模式下不使用 pywebview（走 Edge --app），排除其依赖链避免
+    # 打包无用的 pythonnet/clr_loader DLL（体积大且可能引发 DLL 冲突）
+    excludes=["webview", "pythonnet", "clr_loader", "clr", "System"],
     cipher=block_cipher,
     noarchive=False,
 )
