@@ -5,3 +5,6 @@ uvicorn[standard]>=0.27
 openai>=1.0
 pydantic>=2.0
 httpx>=0.27
+jiter>=0.10
+tqdm>4
+typing-extensions>=4.14

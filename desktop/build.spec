@@ -32,13 +32,23 @@ for p in (ROOT, BACKEND_DIR):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# 收集 FastAPI、Uvicorn、OpenAI、httpx 的数据文件
+# 收集 FastAPI、Uvicorn、OpenAI 及其完整依赖链的数据文件
 # 注意：不再需要 webview/pythonnet/clr_loader —— 改用 Edge --app 模式打开窗口，
 # 完全绕过 pywebview 的 WinForms/pythonnet 依赖链
-# httpx/httpcore: openai 库的 HTTP 客户端，PyInstaller 不会自动收集
+#
+# openai 1.x 的完整依赖（pip show openai）：
+#   anyio, distro, httpx, jiter, pydantic, sniffio, tqdm, typing-extensions
+# PyInstaller 静态分析对动态 import 的库会漏掉依赖，所以这里 collect_all 全部
+# 依赖，避免运行时 ModuleNotFoundError（之前已逐个踩过 httpx/distro/jiter 的坑）
 datas = []
 binaries = []
-for pkg in ["fastapi", "uvicorn", "openai", "pydantic", "httpx", "httpcore", "distro"]:
+for pkg in [
+    "fastapi", "uvicorn", "openai", "pydantic",
+    "httpx", "httpcore", "h11",
+    "anyio", "sniffio", "certifi",
+    "distro", "jiter", "tqdm", "typing_extensions",
+    "pydantic_core",
+]:
     d, b, _ = collect_all(pkg)
     datas += d
     binaries += b
@@ -65,6 +75,7 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=[
+        # --- openai 1.x 完整依赖链（pip show openai 的 Requires 字段）---
         "httpx",
         "httpcore",
         "httpx._config",
@@ -81,6 +92,11 @@ a = Analysis(
         "sniffio",
         "certifi",
         "distro",
+        "jiter",
+        "tqdm",
+        "typing_extensions",
+        "pydantic_core",
+        # --- uvicorn 子模块 ---
         "uvicorn.logging",
         "uvicorn.protocols",
         "uvicorn.protocols.http",
